@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Management</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222535;
+    --border: #2e3148;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --orange: #f97316;
+    --r: 10px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+  main { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  .sc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; position: relative; overflow: hidden; }
+  .sc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .sc.c0::before{background:var(--accent)} .sc.c1::before{background:var(--yellow)} .sc.c2::before{background:var(--green)} .sc.c3::before{background:var(--red)} .sc.c4::before{background:var(--orange)} .sc.c5::before{background:var(--blue)}
+  .sc-label { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .sc-val { font-size: 1.7rem; font-weight: 700; }
+  .sc.c0 .sc-val{color:var(--accent2)} .sc.c1 .sc-val{color:var(--yellow)} .sc.c2 .sc-val{color:var(--green)} .sc.c3 .sc-val{color:var(--red)} .sc.c4 .sc-val{color:var(--orange)} .sc.c5 .sc-val{color:var(--blue)}
+
+  /* AGING SUMMARY */
+  .aging-bar-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 22px; margin-bottom: 28px; }
+  .aging-title { font-size: 0.82rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+  .aging-row { display: flex; gap: 0; border-radius: 8px; overflow: hidden; height: 28px; margin-bottom: 10px; }
+  .aging-seg { display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 600; transition: width 0.5s ease; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .aging-legend { display: flex; gap: 20px; flex-wrap: wrap; }
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  /* TOOLBAR */
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 99px; padding: 5px 14px; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .search-in { background: var(--surface); border: 1px solid var(--border); border-radius: 99px; color: var(--text); padding: 6px 16px; font-size: 0.84rem; outline: none; width: 220px; }
+  .search-in:focus { border-color: var(--accent); }
+  .spacer { flex: 1; }
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 9px 18px; font-size: 0.87rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+  .btn:hover { background: #7c74ff; } .btn:active { transform: scale(0.97); }
+  .btn-sm { padding: 5px 12px; font-size: 0.78rem; border-radius: 6px; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent2); background: transparent; }
+  .btn-outline { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--green); color: var(--green); background: rgba(34,197,94,0.07); }
+
+  /* TABLE */
+  .tbl-wrap { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); margin-bottom: 36px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  thead { background: var(--surface2); }
+  th { padding: 11px 13px; text-align: left; font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; }
+  th:hover { color: var(--accent2); }
+  th.sorted { color: var(--accent2); }
+  td { padding: 11px 13px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(108,99,255,0.04); }
+  .empty td { text-align: center; color: var(--muted); padding: 40px; }
+
+  /* BADGES & CHIPS */
+  .badge { font-size: 0.7rem; padding: 3px 9px; border-radius: 99px; font-weight: 600; display: inline-block; white-space: nowrap; }
+  .b-draft     { background: rgba(136,146,164,0.15); color: #a0aec0; }
+  .b-submitted { background: rgba(59,130,246,0.15);  color: #60a5fa; }
+  .b-approved  { background: rgba(34,197,94,0.15);   color: #4ade80; }
+  .b-rejected  { background: rgba(239,68,68,0.15);   color: #f87171; }
+  .b-paid      { background: rgba(108,99,255,0.15);  color: var(--accent2); }
+  .b-overdue   { background: rgba(249,115,22,0.18);  color: #fb923c; }
+
+  .chip { background: rgba(108,99,255,0.12); color: var(--accent2); border-radius: 5px; padding: 2px 8px; font-size: 0.76rem; font-weight: 500; }
+  .po-chip { background: rgba(59,130,246,0.1); color: #60a5fa; border-radius: 5px; padding: 2px 8px; font-size: 0.76rem; font-weight: 500; }
+
+  .amount { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .c-green { color: var(--green); } .c-yellow { color: var(--yellow); } .c-red { color: var(--red); } .c-blue { color: var(--blue); } .c-orange { color: var(--orange); }
+
+  .aging-pill { font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+  .age-current  { background: rgba(34,197,94,0.1);   color: var(--green); }
+  .age-soon     { background: rgba(245,158,11,0.12); color: var(--yellow); }
+  .age-overdue1 { background: rgba(249,115,22,0.15); color: var(--orange); }
+  .age-overdue2 { background: rgba(239,68,68,0.15);  color: var(--red); }
+
+  .row-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+  .act { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 5px; padding: 4px 9px; font-size: 0.73rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .act:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .act.approve:hover { background: var(--green); border-color: var(--green); }
+  .act.reject:hover  { background: var(--red);   border-color: var(--red); }
+  .act.pay:hover     { background: var(--blue);  border-color: var(--blue); }
+  .act.del:hover     { background: var(--red);   border-color: var(--red); }
+
+  /* FORM */
+  .add-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 22px; margin-bottom: 28px; }
+  .add-form h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 16px; color: var(--accent2); }
+  .fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; align-items: end; }
+  .fg { display: flex; flex-direction: column; gap: 6px; }
+  .fg label { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  input[type=text], input[type=number], input[type=date], input[type=url], select, textarea {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text); padding: 9px 12px; font-size: 0.87rem; font-family: inherit;
+    outline: none; transition: border-color 0.2s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  .span2 { grid-column: span 2; }
+
+  /* MODAL */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 90%; max-width: 620px; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.2s; }
+  .overlay.open .modal { transform: translateY(0); }
+  .mhdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .mtitle { font-size: 1rem; font-weight: 600; }
+  .xbtn { background: none; border: none; color: var(--muted); font-size: 1.3rem; cursor: pointer; }
+  .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .mgrid .full { grid-column: 1 / -1; }
+  .mactions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* APPROVAL TRAIL */
+  .trail { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; }
+  .trail-title { font-size: 0.76rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; }
+  .trail-item { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+  .trail-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .trail-text { font-size: 0.82rem; line-height: 1.5; }
+  .trail-meta { font-size: 0.74rem; color: var(--muted); }
+
+  /* COMMENT BOX */
+  .comment-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-top: 14px; }
+  .comment-box label { font-size: 0.76rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; display: block; margin-bottom: 8px; }
+  .comment-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+  /* FILE LINK */
+  .file-link { color: var(--accent2); font-size: 0.8rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+  .file-link:hover { text-decoration: underline; }
+
+  /* GR / BOOKED TOGGLES */
+  .toggle-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tog { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 99px; font-size: 0.76rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); transition: all 0.15s; user-select: none; white-space: nowrap; }
+  .tog:hover { border-color: var(--accent); color: var(--text); }
+  .tog.on-gr     { background: rgba(34,197,94,0.13);  border-color: #4ade80; color: #4ade80; }
+  .tog.on-booked { background: rgba(108,99,255,0.13); border-color: var(--accent2); color: var(--accent2); }
+  .tog .tog-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* ATTACH ZONE */
+  .attach-zone { background: var(--surface2); border: 2px dashed var(--border); border-radius: 8px; padding: 10px 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; min-height: 44px; }
+  .attach-zone:hover, .attach-zone.dragover { border-color: var(--accent); background: rgba(108,99,255,0.07); }
+  .attach-icon { font-size: 1rem; flex-shrink: 0; }
+  .attach-hint { font-size: 0.79rem; color: var(--muted); flex: 1; }
+  .attach-name { font-size: 0.81rem; color: var(--accent2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .attach-size { font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
+  .attach-clear { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 1px 5px; border-radius: 4px; line-height: 1; transition: all 0.15s; }
+  .attach-clear:hover { color: var(--red); background: rgba(239,68,68,0.08); }
+  .existing-file { display: flex; align-items: center; gap: 8px; background: rgba(108,99,255,0.08); border: 1px solid rgba(108,99,255,0.2); border-radius: 7px; padding: 7px 12px; margin-bottom: 8px; }
+  .existing-file a { color: var(--accent2); font-size: 0.82rem; text-decoration: none; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .existing-file a:hover { text-decoration: underline; }
+  .existing-file-label { font-size: 0.71rem; color: var(--muted); white-space: nowrap; }
+
+  /* DIVIDER */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-size: 0.95rem; font-weight: 600; }
+
+  /* ── SAAS COVERAGE DASHBOARD ─────────────────────────────────── */
+  .saas-dash { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 22px; margin-bottom: 28px; }
+  .saas-dash-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; }
+  .saas-dash-title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .saas-badge { background: rgba(108,99,255,0.15); color: var(--accent2); border-radius: 6px; padding: 3px 10px; font-size: 0.76rem; font-weight: 600; }
+
+  /* Date range controls */
+  .saas-range { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .saas-range label { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .saas-range input[type=month] {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text); padding: 6px 11px; font-size: 0.84rem; font-family: inherit;
+    outline: none; transition: border-color 0.2s; cursor: pointer;
+  }
+  .saas-range input[type=month]:focus { border-color: var(--accent); }
+  .saas-range input[type=month]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+  .saas-range-sep { color: var(--muted); font-size: 0.8rem; }
+  .saas-apply-btn { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 6px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+  .saas-apply-btn:hover { background: #7c74ff; }
+
+  /* KPI row */
+  .saas-kpis { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+  .saas-kpi { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 12px 16px; flex: 1; min-width: 120px; }
+  .saas-kpi-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .saas-kpi-val { font-size: 1.35rem; font-weight: 700; }
+
+  /* Coverage heatmap */
+  .coverage-wrap { overflow-x: auto; }
+  .coverage-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+  .coverage-table th {
+    font-size: 0.7rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.4px; font-weight: 600; padding: 4px 6px; text-align: center;
+    white-space: nowrap;
+  }
+  .coverage-table th.vendor-th { text-align: left; min-width: 155px; max-width: 200px; padding-right: 12px; }
+  .coverage-table td { padding: 3px 4px; vertical-align: middle; }
+  .cov-vendor { font-size: 0.81rem; font-weight: 600; padding: 5px 8px 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+
+  /* Month column: header shows month name + 4 week labels */
+  .month-col-hdr { text-align: center; padding: 0 3px 6px; border-right: 1px solid var(--border); }
+  .month-col-hdr:last-of-type { border-right: none; }
+  .month-name { font-size: 0.72rem; color: var(--text); font-weight: 700; margin-bottom: 4px; }
+  .week-labels { display: flex; gap: 2px; justify-content: center; }
+  .week-lbl { width: 13px; font-size: 0.58rem; color: var(--muted); text-align: center; }
+
+  /* 4-week squares cell */
+  .month-cell { display: flex; gap: 2px; justify-content: center; align-items: center; padding: 0 3px; border-right: 1px solid rgba(46,49,72,0.5); position: relative; }
+  .month-cell:last-of-type { border-right: none; }
+  .wk-sq {
+    width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; cursor: default;
+    position: relative; transition: transform 0.1s;
+  }
+  .wk-sq:hover { transform: scale(1.4); z-index: 20; }
+  .wk-hit     { background: rgba(34,197,94,0.75);  border: 1px solid rgba(34,197,94,0.9); }
+  .wk-miss    { background: rgba(239,68,68,0.35);   border: 1px solid rgba(239,68,68,0.5); }
+  .wk-future  { background: rgba(46,49,72,0.5);     border: 1px solid var(--border); }
+  .wk-outside { background: transparent;            border: 1px solid rgba(46,49,72,0.3); opacity: 0.3; }
+  .wk-multi   { background: rgba(245,158,11,0.7);   border: 1px solid rgba(245,158,11,0.9); }
+
+  /* Tooltip on squares */
+  .wk-sq[data-tip] { cursor: pointer; }
+  .wk-sq[data-tip]:hover::after {
+    content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-size: 0.74rem; color: var(--text); white-space: nowrap;
+    z-index: 100; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    min-width: 120px; text-align: left;
+  }
+
+  .cov-row-total { font-size: 0.78rem; font-weight: 700; color: var(--accent2); padding: 4px 8px; text-align: right; white-space: nowrap; }
+  .cov-row-pct   { font-size: 0.75rem; padding: 4px 6px; text-align: center; white-space: nowrap; }
+  .cov-month-total { font-size: 0.7rem; color: var(--muted); padding: 4px 6px; text-align: center; border-top: 1px solid var(--border); }
+
+  /* Legend */
+  .cov-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
+  .cov-leg-item { display: flex; align-items: center; gap: 6px; font-size: 0.77rem; color: var(--muted); }
+  .cov-leg-sq { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  .saas-empty { color: var(--muted); font-size: 0.86rem; text-align: center; padding: 32px 0; }
+
+  /* Row separator */
+  .coverage-table tbody tr { border-bottom: 1px solid rgba(46,49,72,0.4); }
+  .coverage-table tbody tr:last-child { border-bottom: none; }  /* LIGHT THEME */
+  html.light { --bg: #f0f2f8; --surface: #ffffff; --surface2: #e8eaf4; --border: #d0d4e8; --text: #1a1d2e; --muted: #64748b; }
+
+  /* SIDEBAR NAV */
+  body { display: flex; }
+  .sidebar { width: 196px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; padding: 20px 12px 16px; }
+  .logo { font-size: 1.15rem; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; padding: 4px 8px 18px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .sidebar-nav a { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 0.84rem; font-weight: 500; transition: all 0.15s; white-space: nowrap; }
+  .sidebar-nav a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-nav a.active { background: rgba(108,99,255,0.14); color: var(--accent2); font-weight: 600; }
+  .nav-group-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--border); padding: 10px 10px 3px; margin-top: 2px; pointer-events: none; }
+  .theme-toggle { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 0.81rem; color: var(--muted); transition: all 0.15s; font-family: inherit; line-height: 1; width: 100%; text-align: left; margin-top: auto; }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent2); background: rgba(108,99,255,0.08); }
+  /* MAIN WRAP */
+  .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
+</style>
+<script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">Task<span>Flow</span></div>
+  <nav class="sidebar-nav">
+    <a href="index.html">📋 Dashboard</a>
+    <div class="nav-group-label">Operations</div>
+    <a href="fieldwork.html">🔧 Field Work</a>
+    <a href="invoices.html" class="active">🧾 Invoices</a>
+    <a href="projects.html">📁 Projects</a>
+    <div class="nav-group-label">Budget</div>
+    <a href="capex.html">💰 CapEx</a>
+    <a href="opex.html">📊 OpEx</a>
+    <div class="nav-group-label">Assets</div>
+    <a href="devices.html">💻 Devices</a>
+    <a href="branches.html">🏢 Branches</a>
+    <div class="nav-group-label">System</div>
+    <a href="workflow.html">🔀 Workflow</a>
+    <a href="admin.html">⚙️ Admin</a>
+  </nav>
+  <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">☀️ Light</button>
+</aside>
+
+<div class="main-wrap">
+
+<main>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="sc c0"><div class="sc-label">Total Invoices</div><div class="sc-val" id="stTotal">0</div></div>
+    <div class="sc c1"><div class="sc-label">Pending Approval</div><div class="sc-val" id="stPending">0</div></div>
+    <div class="sc c2"><div class="sc-label">Approved</div><div class="sc-val" id="stApproved">0</div></div>
+    <div class="sc c3"><div class="sc-label">Overdue</div><div class="sc-val" id="stOverdue">0</div></div>
+    <div class="sc c4"><div class="sc-label">Unpaid Balance</div><div class="sc-val" id="stUnpaid">$0</div></div>
+    <div class="sc c5"><div class="sc-label">Total Paid</div><div class="sc-val" id="stPaid">$0</div></div>
+  </div>
+
+  <!-- AGING CHART -->
+  <div class="aging-bar-wrap">
+    <div class="aging-title">Invoice Aging Overview</div>
+    <div class="aging-row" id="agingBar">
+      <div class="aging-seg" style="background:var(--green);width:100%;color:#fff">Loading…</div>
+    </div>
+    <div class="aging-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Current (not due)</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--yellow)"></div>Due within 7 days</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--orange)"></div>1–30 days overdue</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>30+ days overdue</div>
+    </div>
+  </div>
+
+  <!-- SAAS COVERAGE DASHBOARD -->
+  <div class="saas-dash" id="saasDash">
+    <div class="saas-dash-header">
+      <div class="saas-dash-title">
+        ☁ SaaS Vendor Coverage
+        <span class="saas-badge">Weekly</span>
+      </div>
+      <div class="saas-range">
+        <label>From</label>
+        <input type="month" id="saasFrom" onchange="renderSaaSDashboard()" />
+        <span class="saas-range-sep">→</span>
+        <label>To</label>
+        <input type="month" id="saasTo" onchange="renderSaaSDashboard()" />
+      </div>
+    </div>
+    <div class="saas-kpis">
+      <div class="saas-kpi"><div class="saas-kpi-label">SaaS Vendors</div><div class="saas-kpi-val" id="skVendors" style="color:var(--accent2)">0</div></div>
+      <div class="saas-kpi"><div class="saas-kpi-label">Period Spend</div><div class="saas-kpi-val" id="skSpend" style="color:var(--green)">$0</div></div>
+      <div class="saas-kpi"><div class="saas-kpi-label">Avg / Month</div><div class="saas-kpi-val" id="skAvg" style="color:var(--blue)">$0</div></div>
+      <div class="saas-kpi"><div class="saas-kpi-label">Week Coverage</div><div class="saas-kpi-val" id="skCoverage" style="color:var(--yellow)">0%</div></div>
+      <div class="saas-kpi"><div class="saas-kpi-label">Week Gaps</div><div class="saas-kpi-val" id="skGaps" style="color:var(--red)">0</div></div>
+    </div>
+    <div class="coverage-wrap">
+      <div id="coverageTable"></div>
+    </div>
+    <div class="cov-legend">
+      <div class="cov-leg-item"><div class="cov-leg-sq" style="background:rgba(34,197,94,0.75);border:1px solid rgba(34,197,94,0.9)"></div>Week invoiced</div>
+      <div class="cov-leg-item"><div class="cov-leg-sq" style="background:rgba(239,68,68,0.35);border:1px solid rgba(239,68,68,0.5)"></div>Week missing</div>
+      <div class="cov-leg-item"><div class="cov-leg-sq" style="background:rgba(245,158,11,0.7);border:1px solid rgba(245,158,11,0.9)"></div>Multiple invoices</div>
+      <div class="cov-leg-item"><div class="cov-leg-sq" style="background:rgba(46,49,72,0.5);border:1px solid var(--border)"></div>Future / out of range</div>
+    </div>
+  </div>
+
+  <!-- ADD INVOICE FORM -->
+  <div class="add-form">
+    <h3>+ New Invoice</h3>
+    <div class="fgrid">
+      <div class="fg span2">
+        <label>Description *</label>
+        <input type="text" id="nDesc" placeholder="Brief description of work or service" />
+      </div>
+      <div class="fg">
+        <label>Vendor / Party *</label>
+        <input type="text" id="nVendor" placeholder="Vendor name" list="vendorList" />
+        <datalist id="vendorList"></datalist>
+      </div>
+      <div class="fg">
+        <label>Invoice #</label>
+        <input type="text" id="nInvNum" placeholder="INV-0001" />
+      </div>
+      <div class="fg">
+        <label>PO / Work Order #</label>
+        <input type="text" id="nPO" placeholder="PO-0001" />
+      </div>
+      <div class="fg">
+        <label>Amount ($)</label>
+        <input type="number" id="nAmount" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="fg">
+        <label>Invoice Date</label>
+        <input type="date" id="nInvDate" />
+      </div>
+      <div class="fg">
+        <label>Due Date</label>
+        <input type="date" id="nDueDate" />
+      </div>
+      <div class="fg">
+        <label>Category</label>
+        <select id="nCategory">
+          <option value="Field Work">Field Work</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Supply">Supply</option>
+          <option value="SaaS">SaaS</option>
+          <option value="Consulting">Consulting</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="fg" id="nDeptWrap">
+        <label>Department</label>
+        <select id="nDept">
+          <option value="">— Select —</option>
+        </select>
+        <!-- shown as read-only for non-admins -->
+        <div id="nDeptReadonly" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 11px;font-size:0.87rem;color:var(--muted)">—</div>
+      </div>
+      <div class="fg">
+        <label>GR &amp; Booking</label>
+        <div class="toggle-row" style="margin-top:4px">
+          <div class="tog" id="nGrTog" onclick="toggleFormFlag('nGr','nGrTog','on-gr')">
+            <span class="tog-dot"></span> GR Received
+          </div>
+          <div class="tog" id="nBookedTog" onclick="toggleFormFlag('nBooked','nBookedTog','on-booked')">
+            <span class="tog-dot"></span> Booked
+          </div>
+        </div>
+        <input type="hidden" id="nGr" value="0">
+        <input type="hidden" id="nBooked" value="0">
+      </div>
+      <div class="fg span2">
+        <label>Attachment</label>
+        <div class="attach-zone" id="nAttachZone"
+          onclick="document.getElementById('nFileInput').click()"
+          ondragover="handleDragOver(event,this)" ondragleave="this.classList.remove('dragover')"
+          ondrop="handleFileDrop(event,'n')">
+          <span class="attach-icon">📎</span>
+          <span class="attach-hint" id="nAttachHint">Click or drag a file to attach (PDF, image, doc…)</span>
+          <span class="attach-name" id="nAttachName" style="display:none"></span>
+          <span class="attach-size" id="nAttachSize" style="display:none"></span>
+          <button class="attach-clear" id="nAttachClear" style="display:none" onclick="clearAttach('n',event)">✕</button>
+        </div>
+        <input type="file" id="nFileInput" style="display:none"
+          accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.csv,.txt"
+          onchange="handleFileSelect(this,'n')">
+      </div>
+      <div class="fg" style="justify-content:flex-end">
+        <button class="btn" onclick="addInvoice()">Add Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn" onclick="setFilter('draft',this)">Draft</button>
+    <button class="filter-btn" onclick="setFilter('submitted',this)">Submitted</button>
+    <button class="filter-btn" onclick="setFilter('approved',this)">Approved</button>
+    <button class="filter-btn" onclick="setFilter('rejected',this)">Rejected</button>
+    <button class="filter-btn" onclick="setFilter('paid',this)">Paid</button>
+    <button class="filter-btn" onclick="setFilter('overdue',this)">⚠ Overdue</button>
+    <input class="search-in" type="text" id="searchIn" placeholder="Search invoice, vendor, PO…" oninput="renderTable()" />
+    <select id="deptFilterDrop" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5px 12px;font-size:0.82rem;color:var(--text);cursor:pointer" onchange="renderTable()">
+      <option value="">All Departments</option>
+    </select>
+    <div class="spacer"></div>
+    <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn btn-sm" onclick="openNew()">+ Import from Field Work</button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="section-header">
+    <span class="section-title">All Invoices</span>
+    <span id="tableCount" style="font-size:0.82rem;color:var(--muted)"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('invNum')">Invoice # <span id="si-invNum">↕</span></th>
+          <th onclick="sortBy('vendor')">Vendor <span id="si-vendor">↕</span></th>
+          <th onclick="sortBy('desc')">Description <span id="si-desc">↕</span></th>
+          <th onclick="sortBy('category')">Category <span id="si-category">↕</span></th>
+          <th onclick="sortBy('po')">PO # <span id="si-po">↕</span></th>
+          <th onclick="sortBy('amount')">Amount <span id="si-amount">↕</span></th>
+          <th onclick="sortBy('invDate')">Inv. Date <span id="si-invDate">↕</span></th>
+          <th onclick="sortBy('dueDate')">Due Date <span id="si-dueDate">↕</span></th>
+          <th onclick="sortBy('aging')">Aging <span id="si-aging">↕</span></th>
+          <th onclick="sortBy('status')">Status <span id="si-status">↕</span></th>
+          <th onclick="sortBy('department')">Dept <span id="si-department">↕</span></th>
+          <th>GR / Booked</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="invoiceTable"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<!-- DETAIL / EDIT MODAL -->
+<div class="overlay" id="detailModal">
+  <div class="modal">
+    <div class="mhdr">
+      <span class="mtitle" id="modalTitle">Invoice Detail</span>
+      <button class="xbtn" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="mgrid">
+      <div class="fg full">
+        <label>Description</label>
+        <input type="text" id="eDesc" />
+      </div>
+      <div class="fg">
+        <label>Vendor</label>
+        <input type="text" id="eVendor" list="vendorList" />
+      </div>
+      <div class="fg">
+        <label>Invoice #</label>
+        <input type="text" id="eInvNum" />
+      </div>
+      <div class="fg">
+        <label>PO / Work Order #</label>
+        <input type="text" id="ePO" />
+      </div>
+      <div class="fg">
+        <label>Amount ($)</label>
+        <input type="number" id="eAmount" min="0" step="0.01" />
+      </div>
+      <div class="fg">
+        <label>Invoice Date</label>
+        <input type="date" id="eInvDate" />
+      </div>
+      <div class="fg">
+        <label>Due Date</label>
+        <input type="date" id="eDueDate" />
+      </div>
+      <div class="fg">
+        <label>Category</label>
+        <select id="eCategory">
+          <option value="Field Work">Field Work</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Supply">Supply</option>
+          <option value="SaaS">SaaS</option>
+          <option value="Consulting">Consulting</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Status</label>
+        <select id="eStatus">
+          <option value="draft">Draft</option>
+          <option value="submitted">Submitted</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="paid">Paid</option>
+        </select>
+      </div>
+      <div class="fg" id="eDeptWrap">
+        <label>Department</label>
+        <select id="eDept">
+          <option value="">— None —</option>
+        </select>
+        <div id="eDeptReadonly" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:8px 11px;font-size:0.87rem;color:var(--muted)">—</div>
+      </div>
+      <div class="fg full">
+        <label>GR &amp; Booking</label>
+        <div class="toggle-row" style="margin-top:4px">
+          <div class="tog" id="eGrTog" onclick="toggleFormFlag('eGr','eGrTog','on-gr')">
+            <span class="tog-dot"></span> GR Received
+          </div>
+          <div class="tog" id="eBookedTog" onclick="toggleFormFlag('eBooked','eBookedTog','on-booked')">
+            <span class="tog-dot"></span> Booked
+          </div>
+        </div>
+        <input type="hidden" id="eGr" value="0">
+        <input type="hidden" id="eBooked" value="0">
+      </div>
+      <div class="fg full">
+        <label>Attachment</label>
+        <div id="eExistingFile" style="display:none" class="existing-file">
+          <span style="font-size:1rem">📎</span>
+          <a id="eExistingFileLink" href="#" target="_blank" rel="noopener">Current file</a>
+          <span class="existing-file-label">Current</span>
+          <button class="attach-clear" onclick="clearExistingFile()" title="Remove attachment">✕</button>
+        </div>
+        <div class="attach-zone" id="eAttachZone"
+          onclick="document.getElementById('eFileInput').click()"
+          ondragover="handleDragOver(event,this)" ondragleave="this.classList.remove('dragover')"
+          ondrop="handleFileDrop(event,'e')">
+          <span class="attach-icon">📎</span>
+          <span class="attach-hint" id="eAttachHint">Click or drag to replace/add attachment</span>
+          <span class="attach-name" id="eAttachName" style="display:none"></span>
+          <span class="attach-size" id="eAttachSize" style="display:none"></span>
+          <button class="attach-clear" id="eAttachClear" style="display:none" onclick="clearAttach('e',event)">✕</button>
+        </div>
+        <input type="file" id="eFileInput" style="display:none"
+          accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.csv,.txt"
+          onchange="handleFileSelect(this,'e')">
+      </div>
+    </div>
+
+    <!-- APPROVAL TRAIL -->
+    <div class="trail">
+      <div class="trail-title">Approval Trail</div>
+      <div id="approvalTrail"></div>
+
+      <!-- ADD COMMENT -->
+      <div class="comment-box">
+        <label>Add Comment / Action</label>
+        <textarea id="commentText" rows="2" placeholder="Add a note, approval comment, or dispute reason…"></textarea>
+        <div class="comment-actions">
+          <button class="btn btn-sm" onclick="addComment('approved')">✓ Approve</button>
+          <button class="btn btn-sm" style="background:var(--red)" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='var(--red)'" onclick="addComment('rejected')">✕ Reject</button>
+          <button class="btn btn-sm" style="background:var(--blue)" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='var(--blue)'" onclick="addComment('comment')">💬 Comment</button>
+          <button class="btn btn-sm" style="background:var(--green)" onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='var(--green)'" onclick="addComment('paid')">$ Mark Paid</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mactions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-sm" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── GR / BOOKED TOGGLE HELPERS ──────────────────────────────────
+  function toggleFormFlag(hiddenId, togId, onClass) {
+    const hidden = document.getElementById(hiddenId);
+    const tog    = document.getElementById(togId);
+    const isOn   = hidden.value === '1';
+    hidden.value = isOn ? '0' : '1';
+    tog.classList.toggle(onClass, !isOn);
+  }
+
+  function setFormFlag(hiddenId, togId, onClass, val) {
+    document.getElementById(hiddenId).value = val ? '1' : '0';
+    document.getElementById(togId).classList.toggle(onClass, !!val);
+  }
+
+  function resetFormFlags(prefix) {
+    setFormFlag(prefix+'Gr',     prefix+'GrTog',     'on-gr',     false);
+    setFormFlag(prefix+'Booked', prefix+'BookedTog', 'on-booked', false);
+  }
+
+  function quickToggle(id, field) {
+    const inv = invoices.find(i => i.id === id);
+    if (!inv) return;
+    inv[field] = !inv[field];
+    save(); renderTable();
+  }
+
+  // ── FILE ATTACHMENT HELPERS ──────────────────────────────────────
+  let _nPendingFile = null;   // file selected in Add form
+  let _ePendingFile = null;   // file selected in Edit modal
+  let _eClearFile   = false;  // flag to remove existing attachment on save
+
+  function fmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+    return (n/1048576).toFixed(1) + ' MB';
+  }
+
+  function handleDragOver(e, el) {
+    e.preventDefault(); el.classList.add('dragover');
+  }
+
+  function handleFileDrop(e, prefix) {
+    e.preventDefault();
+    const zone = document.getElementById(prefix + 'AttachZone');
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) applyFile(file, prefix);
+  }
+
+  function handleFileSelect(input, prefix) {
+    if (input.files[0]) applyFile(input.files[0], prefix);
+  }
+
+  function applyFile(file, prefix) {
+    if (prefix === 'n') _nPendingFile = file;
+    else _ePendingFile = file;
+
+    const nameEl = document.getElementById(prefix + 'AttachName');
+    const hintEl = document.getElementById(prefix + 'AttachHint');
+    const sizeEl = document.getElementById(prefix + 'AttachSize');
+    const clearEl = document.getElementById(prefix + 'AttachClear');
+
+    nameEl.textContent = file.name;
+    sizeEl.textContent = fmtBytes(file.size);
+    nameEl.style.display = 'block';
+    sizeEl.style.display = 'block';
+    hintEl.style.display = 'none';
+    clearEl.style.display = 'block';
+  }
+
+  function clearAttach(prefix, e) {
+    if (e) { e.stopPropagation(); }
+    if (prefix === 'n') _nPendingFile = null;
+    else _ePendingFile = null;
+
+    document.getElementById(prefix + 'AttachName').style.display  = 'none';
+    document.getElementById(prefix + 'AttachSize').style.display  = 'none';
+    document.getElementById(prefix + 'AttachClear').style.display = 'none';
+    document.getElementById(prefix + 'AttachHint').style.display  = 'block';
+    document.getElementById(prefix + 'FileInput').value = '';
+  }
+
+  function clearExistingFile() {
+    _eClearFile = true;
+    document.getElementById('eExistingFile').style.display = 'none';
+  }
+
+  async function _resolveFile(file, folder, id) {
+    // Supabase Storage if configured
+    if (typeof DB !== 'undefined' && DB.isConfigured()) {
+      const result = await DB.uploadFile(file, folder, id);
+      if (result.error) { alert('Upload failed: ' + result.error.message); return null; }
+      return { url: result.url, path: result.path, name: file.name };
+    }
+    // Fallback: base64 dataURL (warn if large)
+    if (file.size > 1048576) {
+      alert('File is larger than 1 MB. Connect Supabase to upload large files.\nFor now only the filename will be saved.');
+      return { url: null, path: null, name: file.name };
+    }
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve({ url: e.target.result, path: null, name: file.name });
+      reader.onerror = () => resolve({ url: null, path: null, name: file.name });
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── DATA ────────────────────────────────────────────────────────
+  let invoices = JSON.parse(localStorage.getItem('tf_invoices') || '[]');
+  let editingId = null;
+  let activeFilter = 'all';
+  let sortCol = 'invDate';
+  let sortDir = -1;
+  // SaaS range state — set after DOM loads
+  let saasFromVal = '', saasToVal = '';
+
+  const today = () => new Date().toISOString().split('T')[0];
+
+  if (invoices.length === 0) {
+    const t = today();
+    const past30 = dateMinus(t, 30), past10 = dateMinus(t, 10), past5 = dateMinus(t, 5);
+    const due7 = datePlus(t, 7), due14 = datePlus(t, 14), due30 = datePlus(t, 30);
+    invoices = [
+      mk('INV-2024-001','CoolTech Services','HVAC preventive maintenance','Field Work','PO-101',450.00,past30,dateMinus(t,5),'paid',[{type:'comment',text:'Received invoice.',date:past30},{type:'approved',text:'Looks good, approved.',date:dateMinus(t,20)},{type:'paid',text:'Payment processed.',date:dateMinus(t,5)}],'',true,true),
+      mk('INV-2024-002','Volt Masters Inc.','Electrical panel inspection','Field Work','PO-102',320.00,past10,due7,'submitted',[{type:'comment',text:'Invoice submitted for review.',date:past10}],'',true,false),
+      mk('INV-2024-003','AquaFix Co.','Plumbing repair – leak fix','Maintenance','PO-103',210.50,past30,dateMinus(t,15),'rejected',[{type:'comment',text:'Amount higher than quoted.',date:past30},{type:'rejected',text:'Disputed: quoted was $150, invoiced $210.50.',date:dateMinus(t,25)}],'',false,false),
+      mk('INV-2024-004','SafeGuard Systems','Fire suppression annual check','Field Work','PO-104',580.00,dateMinus(t,60),dateMinus(t,30),'paid',[{type:'approved',text:'Auto-approved per contract.',date:dateMinus(t,55)},{type:'paid',text:'Paid via bank transfer.',date:dateMinus(t,30)}],'',true,true),
+      mk('INV-2024-005','Volt Masters Inc.','Generator service & fuel check','Maintenance','PO-105',195.00,past5,due14,'approved',[{type:'approved',text:'Approved — within budget.',date:past5}],'',true,false),
+      mk('INV-2024-006','CleanPro Services','Monthly janitorial contract','Supply','PO-106',750.00,dateMinus(t,45),dateMinus(t,15),'approved',[{type:'approved',text:'Recurring contract, approved.',date:dateMinus(t,44)}],'',true,true),
+      // ── SaaS vendors – monthly subscriptions across the year ──
+      // Figma – all 12 months covered
+      ...['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'].map((m,i)=>mk(`SAAS-FIG-${String(i+1).padStart(2,'0')}`,'Figma',`Figma – ${m} subscription`,'SaaS','',49.00,`${m}-01`,`${m}-15`,'paid',[{type:'paid',text:'Auto-paid.',date:`${m}-15`}],'')),
+      // Slack – missing March & May (gaps)
+      ...['2026-01','2026-02','2026-04','2026-06'].map((m,i)=>mk(`SAAS-SLK-${String(i+1).padStart(2,'0')}`,'Slack',`Slack – ${m} subscription`,'SaaS','',87.50,`${m}-01`,`${m}-10`,i<2?'paid':'approved',[{type:'paid',text:'Auto-paid.',date:`${m}-10`}],'')),
+      // GitHub – double invoiced in February
+      ...['2026-01','2026-02','2026-02','2026-03','2026-04','2026-05','2026-06'].map((m,i)=>mk(`SAAS-GH-${String(i+1).padStart(2,'0')}`,'GitHub',`GitHub – ${m} subscription`+(i===2?' (duplicate)':''),'SaaS','',21.00,`${m}-${i===2?'15':'01'}`,`${m}-${i===2?'28':'10'}`,i===2?'rejected':'paid',[{type:'paid',text:'Processed.',date:`${m}-10`}],'')),
+      // Notion – missing Jan, Apr
+      ...['2026-02','2026-03','2026-05','2026-06'].map((m,i)=>mk(`SAAS-NOT-${String(i+1).padStart(2,'0')}`,'Notion',`Notion – ${m} subscription`,'SaaS','',16.00,`${m}-01`,`${m}-10`,'paid',[{type:'paid',text:'Auto-paid.',date:`${m}-10`}],'')),
+      // Zoom – all paid
+      ...['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'].map((m,i)=>mk(`SAAS-ZM-${String(i+1).padStart(2,'0')}`,'Zoom',`Zoom – ${m} subscription`,'SaaS','',149.90,`${m}-01`,`${m}-10`,'paid',[{type:'paid',text:'Auto-paid.',date:`${m}-10`}],'')),
+      // Jira – pending from April onward
+      ...['2026-01','2026-02','2026-03','2026-04','2026-05'].map((m,i)=>mk(`SAAS-JR-${String(i+1).padStart(2,'0')}`,'Jira / Atlassian',`Jira – ${m} subscription`,'SaaS','',75.00,`${m}-01`,`${m}-10`,i<3?'paid':'submitted',[{type:'submitted',text:'Invoice submitted.',date:`${m}-01`}],'')),
+    ];
+    // Backfill sensible departments for seed demo data
+    invoices.forEach(inv => {
+      if (!inv.department) inv.department = inv.category === 'SaaS' ? 'IT' : 'Facilities';
+    });
+    save();
+  }
+
+  // Migration: ensure all existing invoices have department/created_by fields
+  invoices.forEach(inv => {
+    if (!inv.hasOwnProperty('department')) inv.department = '';
+    if (!inv.hasOwnProperty('created_by')) inv.created_by = '';
+  });
+
+  function mk(invNum,vendor,desc,category,po,amount,invDate,dueDate,status,trail,file,gr,booked,department,createdBy) {
+    return { id: uid(), invNum, vendor, desc, category, po, amount, invDate, dueDate, status, trail: trail||[], file: file||'', attachment_path:'', attachment_name:'', gr: !!gr, booked: !!booked, department: department||'', created_by: createdBy||'', created: Date.now() };
+  }
+  function uid() { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+  function save() { localStorage.setItem('tf_invoices', JSON.stringify(invoices)); }
+  function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function datePlus(d,n) { const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().split('T')[0]; }
+  function dateMinus(d,n) { return datePlus(d,-n); }
+
+  function ageDays(dueDate) {
+    if (!dueDate) return null;
+    const diff = Math.floor((new Date(today()) - new Date(dueDate)) / 86400000);
+    return diff; // positive = overdue
+  }
+
+  function isOverdue(inv) {
+    return inv.status !== 'paid' && inv.dueDate && ageDays(inv.dueDate) > 0;
+  }
+
+  // ── ADD ─────────────────────────────────────────────────────────
+  async function addInvoice() {
+    const desc = document.getElementById('nDesc').value.trim();
+    const vendor = document.getElementById('nVendor').value.trim();
+    if (!desc || !vendor) { (desc ? document.getElementById('nVendor') : document.getElementById('nDesc')).focus(); return; }
+
+    const newId = uid();
+    let fileUrl = '', filePath = '', fileName = '';
+    if (_nPendingFile) {
+      const r = await _resolveFile(_nPendingFile, 'invoices', newId);
+      if (r) { fileUrl = r.url || ''; filePath = r.path || ''; fileName = r.name || ''; }
+    }
+
+    const cu = window.CURRENT_USER || {};
+    const deptVal = (cu.role||'').toLowerCase()==='admin'
+      ? document.getElementById('nDept').value
+      : (cu.department || '');
+
+    invoices.unshift({
+      id: newId,
+      invNum: document.getElementById('nInvNum').value.trim(),
+      vendor,
+      desc,
+      category: document.getElementById('nCategory').value,
+      department: deptVal,
+      created_by: cu.email || cu.name || '',
+      po: document.getElementById('nPO').value.trim(),
+      amount: parseFloat(document.getElementById('nAmount').value)||0,
+      invDate: document.getElementById('nInvDate').value,
+      dueDate: document.getElementById('nDueDate').value,
+      status: 'draft',
+      trail: [{type:'comment',text:'Invoice created.',date:today()}],
+      file: fileUrl,
+      attachment_path: filePath,
+      attachment_name: fileName,
+      gr:     document.getElementById('nGr').value === '1',
+      booked: document.getElementById('nBooked').value === '1',
+      created: Date.now()
+    });
+    save();
+    ['nDesc','nVendor','nInvNum','nPO','nAmount','nInvDate','nDueDate'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('nDept').value = '';
+    clearAttach('n', null);
+    resetFormFlags('n');
+    renderAll();
+  }
+
+  function deleteInvoice(id) {
+    invoices = invoices.filter(i=>i.id!==id);
+    save(); renderAll();
+  }
+
+  function quickStatus(id, status) {
+    const inv = invoices.find(i=>i.id===id);
+    if (!inv) return;
+    inv.status = status;
+    inv.trail.push({ type: status, text: status.charAt(0).toUpperCase()+status.slice(1)+' (quick action).', date: today() });
+    save(); renderAll();
+  }
+
+  // ── MODAL ───────────────────────────────────────────────────────
+  function openDetail(id) {
+    const inv = invoices.find(i=>i.id===id);
+    if (!inv) return;
+    editingId = id;
+    _ePendingFile = null;
+    _eClearFile   = false;
+
+    document.getElementById('modalTitle').textContent = inv.invNum || 'Invoice Detail';
+    document.getElementById('eDesc').value = inv.desc;
+    document.getElementById('eVendor').value = inv.vendor;
+    document.getElementById('eInvNum').value = inv.invNum||'';
+    document.getElementById('ePO').value = inv.po||'';
+    document.getElementById('eAmount').value = inv.amount||'';
+    document.getElementById('eInvDate').value = inv.invDate||'';
+    document.getElementById('eDueDate').value = inv.dueDate||'';
+    document.getElementById('eCategory').value = inv.category||'Field Work';
+    document.getElementById('eStatus').value = inv.status;
+
+    // Department field (editable for admin, read-only for others)
+    const cuRole = (window.CURRENT_USER && window.CURRENT_USER.role||'').toLowerCase();
+    const eDeptSel = document.getElementById('eDept');
+    const eDeptRO  = document.getElementById('eDeptReadonly');
+    if (cuRole === 'admin') {
+      eDeptSel.value = inv.department||''; eDeptSel.style.display=''; eDeptRO.style.display='none';
+    } else {
+      eDeptSel.style.display='none'; eDeptRO.style.display=''; eDeptRO.textContent = inv.department||'—';
+    }
+
+    // GR / Booked flags
+    setFormFlag('eGr',     'eGrTog',     'on-gr',     inv.gr);
+    setFormFlag('eBooked', 'eBookedTog', 'on-booked', inv.booked);
+
+    // Existing file
+    const hasFile = inv.file && inv.file.length > 0;
+    const existingEl = document.getElementById('eExistingFile');
+    const existingLink = document.getElementById('eExistingFileLink');
+    if (hasFile) {
+      existingLink.href = inv.file;
+      existingLink.textContent = inv.attachment_name || 'View attachment';
+      existingEl.style.display = 'flex';
+    } else {
+      existingEl.style.display = 'none';
+    }
+    // Reset new-file picker
+    clearAttach('e', null);
+    document.getElementById('eAttachHint').textContent = hasFile ? 'Drop a file to replace the current attachment' : 'Click or drag to add an attachment';
+
+    document.getElementById('commentText').value = '';
+    renderTrail(inv);
+    document.getElementById('detailModal').classList.add('open');
+  }
+
+  function renderTrail(inv) {
+    const colors = { comment:'var(--muted)', approved:'var(--green)', rejected:'var(--red)', paid:'var(--blue)', submitted:'var(--yellow)' };
+    const icons  = { comment:'💬', approved:'✓', rejected:'✕', paid:'$', submitted:'→' };
+    const el = document.getElementById('approvalTrail');
+    if (!inv.trail || inv.trail.length === 0) { el.innerHTML = '<div style="color:var(--muted);font-size:0.82rem">No activity yet.</div>'; return; }
+    el.innerHTML = [...inv.trail].reverse().map(e => `
+      <div class="trail-item">
+        <div class="trail-dot" style="background:${colors[e.type]||'var(--muted)'}"></div>
+        <div>
+          <div class="trail-text"><strong style="color:${colors[e.type]||'var(--text)'}">${icons[e.type]||'•'} ${e.type.charAt(0).toUpperCase()+e.type.slice(1)}</strong> — ${esc(e.text)}</div>
+          <div class="trail-meta">${e.date}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function addComment(type) {
+    const inv = invoices.find(i=>i.id===editingId);
+    if (!inv) return;
+    const text = document.getElementById('commentText').value.trim() || (type==='approved'?'Approved.':type==='rejected'?'Rejected.':type==='paid'?'Marked as paid.':'Note added.');
+    inv.trail.push({ type, text, date: today() });
+    if (type === 'approved') inv.status = 'approved';
+    if (type === 'rejected') inv.status = 'rejected';
+    if (type === 'paid')     inv.status = 'paid';
+    document.getElementById('eStatus').value = inv.status;
+    document.getElementById('commentText').value = '';
+    save(); renderTrail(inv); renderAll();
+  }
+
+  async function saveEdit() {
+    const inv = invoices.find(i=>i.id===editingId);
+    if (!inv) return;
+    inv.desc     = document.getElementById('eDesc').value.trim()    || inv.desc;
+    inv.vendor   = document.getElementById('eVendor').value.trim()  || inv.vendor;
+    inv.invNum   = document.getElementById('eInvNum').value.trim();
+    inv.po       = document.getElementById('ePO').value.trim();
+    inv.amount   = parseFloat(document.getElementById('eAmount').value)||0;
+    inv.invDate  = document.getElementById('eInvDate').value;
+    inv.dueDate  = document.getElementById('eDueDate').value;
+    inv.category = document.getElementById('eCategory').value;
+    inv.status   = document.getElementById('eStatus').value;
+    if ((window.CURRENT_USER && (window.CURRENT_USER.role||'').toLowerCase()) === 'admin') {
+      inv.department = document.getElementById('eDept').value;
+    }
+
+    inv.gr     = document.getElementById('eGr').value === '1';
+    inv.booked = document.getElementById('eBooked').value === '1';
+
+    // Handle file changes
+    if (_ePendingFile) {
+      const r = await _resolveFile(_ePendingFile, 'invoices', inv.id);
+      if (r) { inv.file = r.url || ''; inv.attachment_path = r.path || ''; inv.attachment_name = r.name || ''; }
+    } else if (_eClearFile) {
+      // Delete from Supabase Storage if path exists
+      if (inv.attachment_path && typeof DB !== 'undefined' && DB.isConfigured()) {
+        await DB.deleteFile(inv.attachment_path);
+      }
+      inv.file = ''; inv.attachment_path = ''; inv.attachment_name = '';
+    }
+
+    save(); closeModal(); renderAll();
+  }
+
+  function closeModal() {
+    document.getElementById('detailModal').classList.remove('open');
+    editingId = null; _ePendingFile = null; _eClearFile = false;
+  }
+
+  // ── IMPORT FROM FIELD WORK ───────────────────────────────────────
+  function openNew() {
+    const visits = JSON.parse(localStorage.getItem('taskflow_visits')||'[]');
+    const existingInvNums = new Set(invoices.map(i=>i.invNum).filter(Boolean));
+    const toImport = visits.filter(v => v.invoice && !existingInvNums.has(v.invoice));
+    if (toImport.length === 0) { alert('No new field work invoices to import. All are already tracked here.'); return; }
+    toImport.forEach(v => {
+      invoices.unshift({
+        id: uid(),
+        invNum: v.invoice,
+        vendor: v.vendor,
+        desc: v.desc,
+        category: 'Field Work',
+        po: '',
+        amount: v.amount||0,
+        invDate: v.date||today(),
+        dueDate: '',
+        status: v.status==='paid'?'paid':v.status==='approved'?'approved':v.status==='disputed'?'rejected':'submitted',
+        trail: [{type:'comment',text:'Imported from Field Work log.',date:today()}],
+        file: '',
+        department: (window.CURRENT_USER && window.CURRENT_USER.department) || '',
+        created_by: (window.CURRENT_USER && (window.CURRENT_USER.email || window.CURRENT_USER.name)) || '',
+        created: Date.now()
+      });
+    });
+    save(); renderAll();
+    alert(`✓ Imported ${toImport.length} invoice(s) from Field Work.`);
+  }
+
+  // ── FILTER / SORT ───────────────────────────────────────────────
+  function setFilter(f, btn) {
+    activeFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTable();
+  }
+
+  function sortBy(col) {
+    if (sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=-1; }
+    document.querySelectorAll('[id^="si-"]').forEach(el=>{ el.textContent='↕'; el.parentElement.classList.remove('sorted'); });
+    const el = document.getElementById('si-'+col);
+    if (el) { el.textContent = sortDir===1?'↑':'↓'; el.parentElement.classList.add('sorted'); }
+    renderTable();
+  }
+
+  function getFiltered() {
+    const q = document.getElementById('searchIn').value.toLowerCase();
+    const cu = window.CURRENT_USER || {};
+    const isAdmin = (cu.role||'').toLowerCase() === 'admin';
+    const adminDeptFilter = isAdmin ? (document.getElementById('deptFilterDrop')||{}).value || '' : '';
+    const userDept = !isAdmin ? (cu.department || '') : '';
+
+    return invoices.filter(inv => {
+      const over = isOverdue(inv);
+      const mf = activeFilter==='all' ? true : activeFilter==='overdue' ? over : inv.status===activeFilter;
+      const ms = !q || [inv.desc,inv.vendor,inv.invNum,inv.po,inv.category,inv.department].some(f=>(f||'').toLowerCase().includes(q));
+      // Dept scope: non-admin sees only their dept; admin sees all or picked dept
+      const md = isAdmin
+        ? (!adminDeptFilter || (inv.department||'') === adminDeptFilter)
+        : (!userDept || (inv.department||'') === userDept);
+      return mf && ms && md;
+    }).sort((a,b) => {
+      if (sortCol==='amount') return (a.amount-b.amount)*sortDir;
+      if (sortCol==='aging') {
+        const ad = ageDays(a.dueDate)??-9999, bd = ageDays(b.dueDate)??-9999;
+        return (ad-bd)*sortDir;
+      }
+      const av=a[sortCol]||'', bv=b[sortCol]||'';
+      return av<bv?-sortDir:av>bv?sortDir:0;
+    });
+  }
+
+  // ── RENDER ───────────────────────────────────────────────────────
+  function renderAll() {
+    const total = invoices.length;
+    const pending = invoices.filter(i=>i.status==='submitted'||i.status==='draft').length;
+    const approved = invoices.filter(i=>i.status==='approved').length;
+    const overdue = invoices.filter(i=>isOverdue(i)).length;
+    const unpaid = invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+i.amount,0);
+    const paid   = invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+i.amount,0);
+    document.getElementById('stTotal').textContent   = total;
+    document.getElementById('stPending').textContent = pending;
+    document.getElementById('stApproved').textContent= approved;
+    document.getElementById('stOverdue').textContent = overdue;
+    document.getElementById('stUnpaid').textContent  = fmt(unpaid);
+    document.getElementById('stPaid').textContent    = fmt(paid);
+
+    // Aging bar
+    const unpaidInvoices = invoices.filter(i=>i.status!=='paid'&&i.dueDate);
+    const totalAmt = unpaidInvoices.reduce((s,i)=>s+i.amount,0)||1;
+    const aCurrent  = unpaidInvoices.filter(i=>ageDays(i.dueDate)<=-8).reduce((s,i)=>s+i.amount,0);
+    const aSoon     = unpaidInvoices.filter(i=>ageDays(i.dueDate)>-8&&ageDays(i.dueDate)<=0).reduce((s,i)=>s+i.amount,0);
+    const aOver1    = unpaidInvoices.filter(i=>ageDays(i.dueDate)>0&&ageDays(i.dueDate)<=30).reduce((s,i)=>s+i.amount,0);
+    const aOver2    = unpaidInvoices.filter(i=>ageDays(i.dueDate)>30).reduce((s,i)=>s+i.amount,0);
+    const segs = [
+      {c:'var(--green)', v:aCurrent, label:'Current'},
+      {c:'var(--yellow)',v:aSoon,    label:'Due Soon'},
+      {c:'var(--orange)',v:aOver1,   label:'1–30d Over'},
+      {c:'var(--red)',   v:aOver2,   label:'30d+ Over'},
+    ];
+    document.getElementById('agingBar').innerHTML = segs.filter(s=>s.v>0).map(s=>{
+      const pct = Math.max((s.v/totalAmt)*100,2).toFixed(1);
+      return `<div class="aging-seg" style="background:${s.c};width:${pct}%;color:#fff;padding:0 8px">${pct>8?s.label:''}</div>`;
+    }).join('') || '<div class="aging-seg" style="background:var(--surface2);width:100%;color:var(--muted)">No unpaid invoices</div>';
+
+    // Vendor datalist
+    const vendors = [...new Set(invoices.map(v=>v.vendor).filter(Boolean))];
+    document.getElementById('vendorList').innerHTML = vendors.map(v=>`<option value="${esc(v)}">`).join('');
+
+    renderSaaSDashboard();
+    renderTable();
+  }
+
+  // ── SAAS COVERAGE DASHBOARD ──────────────────────────────────────
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // Week bands: [startDay, endDay] (1-indexed, endDay inclusive, last band extends to month end)
+  const WEEK_BANDS = [[1,7],[8,14],[15,21],[22,31]];
+  const WEEK_LABELS = ['W1','W2','W3','W4'];
+
+  function parseMY(val) {
+    // val = "YYYY-MM" → {y, m0} where m0 is 0-indexed month
+    if (!val) return null;
+    const [y, m] = val.split('-').map(Number);
+    return { y, m0: m - 1 };
+  }
+
+  function monthsInRange(fromVal, toVal) {
+    // Returns array of {y, m0, key:"YYYY-MM"} for each month in [from, to]
+    const f = parseMY(fromVal), t = parseMY(toVal);
+    if (!f || !t) return [];
+    const result = [];
+    let y = f.y, m = f.m0;
+    while (y < t.y || (y === t.y && m <= t.m0)) {
+      result.push({ y, m0: m, key: `${y}-${String(m+1).padStart(2,'0')}` });
+      m++;
+      if (m > 11) { m = 0; y++; }
+      if (result.length > 60) break; // safety cap: 5 years
+    }
+    return result;
+  }
+
+  function daysInMonth(y, m0) {
+    return new Date(y, m0 + 1, 0).getDate();
+  }
+
+  function renderSaaSDashboard() {
+    const fromVal = document.getElementById('saasFrom').value;
+    const toVal   = document.getElementById('saasTo').value;
+    if (!fromVal || !toVal || fromVal > toVal) {
+      document.getElementById('coverageTable').innerHTML = '<div class="saas-empty">Select a valid date range above.</div>';
+      return;
+    }
+
+    const now = new Date();
+    const nowKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+    const months = monthsInRange(fromVal, toVal);
+    if (months.length === 0) {
+      document.getElementById('coverageTable').innerHTML = '<div class="saas-empty">No months in range.</div>';
+      return;
+    }
+
+    // All SaaS invoices in range (any status)
+    const saasAll = invoices.filter(i =>
+      i.category === 'SaaS' && i.invDate &&
+      i.invDate >= (fromVal + '-01') &&
+      i.invDate <= (toVal + '-31')
+    );
+    const saasActive = saasAll.filter(i => i.status !== 'rejected');
+
+    const vendors = [...new Set(saasActive.map(i => i.vendor))].sort();
+
+    // Per-vendor per-month per-week map: map[vendor][monthKey][weekIdx] = [invoices]
+    const vmap = {};
+    vendors.forEach(v => {
+      vmap[v] = {};
+      months.forEach(({ key }) => {
+        vmap[v][key] = [[], [], [], []]; // 4 weeks
+      });
+    });
+    saasAll.forEach(inv => {
+      if (!inv.invDate || !vmap[inv.vendor]) return;
+      const d = new Date(inv.invDate);
+      const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if (!vmap[inv.vendor][mk]) return;
+      const day = d.getDate();
+      const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+      vmap[inv.vendor][mk][wi].push(inv);
+    });
+
+    // KPIs: week-level coverage
+    let totalWeekSlots = 0, coveredWeekSlots = 0, weekGaps = 0;
+    const periodSpend = saasActive.reduce((s,i) => s + (i.amount||0), 0);
+    vendors.forEach(v => {
+      months.forEach(({ key }) => {
+        const isFuture = key > nowKey;
+        if (isFuture) return;
+        for (let wi = 0; wi < 4; wi++) {
+          totalWeekSlots++;
+          const active = (vmap[v][key][wi]||[]).filter(i => i.status !== 'rejected');
+          if (active.length > 0) coveredWeekSlots++; else weekGaps++;
+        }
+      });
+    });
+    const coveragePct = totalWeekSlots ? Math.round((coveredWeekSlots / totalWeekSlots) * 100) : 0;
+    const coveredMonths = months.filter(m => m.key <= nowKey).length;
+    const avgMonthly = coveredMonths && vendors.length ? periodSpend / (coveredMonths * vendors.length) : 0;
+
+    document.getElementById('skVendors').textContent  = vendors.length;
+    document.getElementById('skSpend').textContent    = fmt(periodSpend);
+    document.getElementById('skAvg').textContent      = fmt(avgMonthly);
+    document.getElementById('skCoverage').textContent = coveragePct + '%';
+    document.getElementById('skGaps').textContent     = weekGaps;
+    document.getElementById('skCoverage').style.color = coveragePct >= 90 ? 'var(--green)' : coveragePct >= 70 ? 'var(--yellow)' : 'var(--red)';
+    document.getElementById('skGaps').style.color     = weekGaps === 0 ? 'var(--green)' : 'var(--red)';
+
+    if (vendors.length === 0) {
+      document.getElementById('coverageTable').innerHTML = `<div class="saas-empty">No SaaS invoices in this range. Add invoices with category <strong>SaaS</strong> to see coverage.</div>`;
+      return;
+    }
+
+    // ── BUILD TABLE ──────────────────────────────────────────────
+    let html = `<table class="coverage-table"><thead><tr>
+      <th class="vendor-th">Vendor</th>`;
+
+    months.forEach(({ key, y, m0 }) => {
+      html += `<th class="month-col-hdr">
+        <div class="month-name">${MONTHS[m0]} ${y !== now.getFullYear() ? y : ''}</div>
+        <div class="week-labels">${WEEK_LABELS.map(l=>`<span class="week-lbl">${l}</span>`).join('')}</div>
+      </th>`;
+    });
+
+    html += `<th style="text-align:right;padding-right:4px">Total</th><th>Cov%</th></tr></thead><tbody>`;
+
+    vendors.forEach(v => {
+      const rowSpend = saasActive.filter(i => i.vendor === v).reduce((s,i) => s+(i.amount||0), 0);
+      let rowWeekSlots = 0, rowCovered = 0;
+
+      let cells = '';
+      months.forEach(({ key, y, m0 }) => {
+        const isFuture = key > nowKey;
+        const dim = daysInMonth(y, m0);
+        const weekCells = WEEK_LABELS.map((_, wi) => {
+          // If week start > days in month, this week doesn't exist
+          const wStart = WEEK_BANDS[wi][0];
+          if (wStart > dim) return `<div class="wk-sq wk-outside" title="N/A"></div>`;
+
+          if (isFuture) return `<div class="wk-sq wk-future" data-tip="Future"></div>`;
+
+          const allInWeek = (vmap[v][key][wi]||[]);
+          const active = allInWeek.filter(i => i.status !== 'rejected');
+          const rejected = allInWeek.filter(i => i.status === 'rejected');
+
+          rowWeekSlots++;
+
+          if (active.length === 0 && rejected.length > 0) {
+            const tip = `${MONTHS[m0]} W${wi+1}: Rejected — ${fmt(rejected[0].amount)}`;
+            return `<div class="wk-sq wk-miss" data-tip="${esc(tip)}"></div>`;
+          }
+          if (active.length === 0) {
+            const tip = `${MONTHS[m0]} W${wi+1}: No invoice`;
+            return `<div class="wk-sq wk-miss" data-tip="${esc(tip)}"></div>`;
+          }
+          rowCovered++;
+          if (active.length > 1) {
+            const total = active.reduce((s,i)=>s+i.amount,0);
+            const tip = `${MONTHS[m0]} W${wi+1}: ${active.length} invoices — ${fmt(total)}`;
+            return `<div class="wk-sq wk-multi" data-tip="${esc(tip)}"></div>`;
+          }
+          const inv = active[0];
+          const stLabel = inv.status==='paid'?'Paid':inv.status==='approved'?'Approved':inv.status==='submitted'?'Pending':'Draft';
+          const tip = `${MONTHS[m0]} W${wi+1}: ${fmt(inv.amount)} · ${stLabel}`;
+          return `<div class="wk-sq wk-hit" data-tip="${esc(tip)}"></div>`;
+        }).join('');
+
+        cells += `<td><div class="month-cell">${weekCells}</div></td>`;
+      });
+
+      const rowPct = rowWeekSlots ? Math.round((rowCovered/rowWeekSlots)*100) : 0;
+      const pctColor = rowPct===100?'var(--green)':rowPct>=75?'var(--yellow)':'var(--red)';
+      html += `<tr>
+        <td class="cov-vendor" title="${esc(v)}">${esc(v)}</td>
+        ${cells}
+        <td class="cov-row-total">${fmt(rowSpend)}</td>
+        <td class="cov-row-pct" style="color:${pctColor};font-weight:700">${rowPct}%</td>
+      </tr>`;
+    });
+
+    // Month spend totals row
+    html += `<tr><td style="font-size:0.7rem;color:var(--muted);padding:5px 0;font-weight:600">Spend</td>`;
+    months.forEach(({ key }) => {
+      const mSpend = saasActive.filter(i => i.invDate && i.invDate.startsWith(key)).reduce((s,i)=>s+i.amount,0);
+      const isFuture = key > nowKey;
+      html += `<td class="cov-month-total" style="${isFuture?'color:var(--border)':''}">${isFuture||mSpend===0?'—':fmt(mSpend).replace('$','')}</td>`;
+    });
+    html += `<td class="cov-row-total">${fmt(periodSpend)}</td><td></td></tr>`;
+
+    html += `</tbody></table>`;
+    document.getElementById('coverageTable').innerHTML = html;
+  }
+
+  function renderTable() {
+    const filtered = getFiltered();
+    document.getElementById('tableCount').textContent = filtered.length + ' invoice' + (filtered.length!==1?'s':'');
+    const tbody = document.getElementById('invoiceTable');
+    if (filtered.length===0) { tbody.innerHTML='<tr class="empty"><td colspan="12">No invoices found</td></tr>'; return; }
+
+    tbody.innerHTML = filtered.map(inv => {
+      const over = isOverdue(inv);
+      const days = ageDays(inv.dueDate);
+      let agePill = '';
+      if (inv.status==='paid') {
+        agePill = '<span style="color:var(--muted);font-size:0.75rem">—</span>';
+      } else if (!inv.dueDate) {
+        agePill = '<span style="color:var(--muted);font-size:0.75rem">No due date</span>';
+      } else if (days > 30) {
+        agePill = `<span class="aging-pill age-overdue2">${days}d overdue</span>`;
+      } else if (days > 0) {
+        agePill = `<span class="aging-pill age-overdue1">${days}d overdue</span>`;
+      } else if (days >= -7) {
+        agePill = `<span class="aging-pill age-soon">Due in ${-days}d</span>`;
+      } else {
+        agePill = `<span class="aging-pill age-current">Due in ${-days}d</span>`;
+      }
+
+      const statusBadge = `<span class="badge b-${over&&inv.status!=='paid'?'overdue':inv.status}">${over&&inv.status!=='paid'?'Overdue':inv.status.charAt(0).toUpperCase()+inv.status.slice(1)}</span>`;
+
+      const acts = [];
+      if (inv.status==='draft')     acts.push(`<button class="act" onclick="quickStatus('${inv.id}','submitted')">→ Submit</button>`);
+      if (inv.status==='submitted') acts.push(`<button class="act approve" onclick="quickStatus('${inv.id}','approved')">✓ Approve</button>`);
+      if (inv.status==='submitted') acts.push(`<button class="act reject"  onclick="quickStatus('${inv.id}','rejected')">✕ Reject</button>`);
+      if (inv.status==='approved')  acts.push(`<button class="act pay"     onclick="quickStatus('${inv.id}','paid')">$ Pay</button>`);
+      acts.push(`<button class="act" onclick="openDetail('${inv.id}')">✎ Detail</button>`);
+      acts.push(`<button class="act del" onclick="deleteInvoice('${inv.id}')">✕</button>`);
+
+      const amtColor = inv.status==='paid'?'c-green':over?'c-red':inv.status==='rejected'?'c-red':'c-yellow';
+
+      return `<tr>
+        <td style="font-family:monospace;font-size:0.8rem">${inv.invNum?esc(inv.invNum):'<span style="color:var(--muted)">—</span>'}</td>
+        <td><span class="chip">${esc(inv.vendor)}</span></td>
+        <td style="max-width:220px">
+          <span style="cursor:pointer;text-decoration:underline dotted var(--border)" onclick="openDetail('${inv.id}')">${esc(inv.desc)}</span>
+        </td>
+        <td><span style="font-size:0.78rem;color:var(--muted)">${esc(inv.category||'')}</span></td>
+        <td>${inv.po?`<span class="po-chip">${esc(inv.po)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+        <td><span class="amount ${amtColor}">${fmt(inv.amount)}</span>${inv.file?` <a href="${esc(inv.file)}" target="_blank" class="file-link" title="${esc(inv.attachment_name||'Open attachment')}">📎 ${esc(inv.attachment_name||'file')}</a>`:''}</td>
+        <td style="font-size:0.82rem">${inv.invDate||'<span style="color:var(--muted)">—</span>'}</td>
+        <td style="font-size:0.82rem;${over?'color:var(--red);font-weight:600':''}">${inv.dueDate||'<span style="color:var(--muted)">—</span>'}</td>
+        <td>${agePill}</td>
+        <td>${statusBadge}</td>
+        <td><span style="font-size:0.78rem;color:var(--muted)">${inv.department?esc(inv.department):'<span style="color:var(--border)">—</span>'}</span></td>
+        <td>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div class="tog${inv.gr?' on-gr':''}" onclick="quickToggle('${inv.id}','gr')" title="Click to toggle GR">
+              <span class="tog-dot"></span>${inv.gr ? '✓ GR' : 'GR'}
+            </div>
+            <div class="tog${inv.booked?' on-booked':''}" onclick="quickToggle('${inv.id}','booked')" title="Click to toggle Booked">
+              <span class="tog-dot"></span>${inv.booked ? '✓ Booked' : 'Booked'}
+            </div>
+          </div>
+        </td>
+        <td><div class="row-actions">${acts.join('')}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── CSV EXPORT ──────────────────────────────────────────────────
+  function exportCSV() {
+    const rows = [['Invoice #','Vendor','Description','Category','Department','PO #','Amount','Inv. Date','Due Date','Status','Days Aging','File']];
+    getFiltered().forEach(i => {
+      const d = ageDays(i.dueDate);
+      rows.push([i.invNum||'',i.vendor,i.desc,i.category||'',i.department||'',i.po||'',i.amount||0,i.invDate||'',i.dueDate||'',i.status,d!==null?(d>0?'+'+d:d):'',i.file||'']);
+    });
+    const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download = 'invoices.csv';
+    a.click();
+  }
+
+  // ── DEPT ACCESS CONTROL ──────────────────────────────────────────
+  function initDeptAccess() {
+    const cu = window.CURRENT_USER || {};
+    const isAdmin = (cu.role||'').toLowerCase() === 'admin';
+    const depts = JSON.parse(localStorage.getItem('tf_departments') || 'null') ||
+      ['IT','Facilities','Admin','HR','Operations','Finance','Security','Procurement'];
+
+    // Populate dept dropdowns (add form, edit modal, toolbar filter)
+    const opts = depts.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+    document.getElementById('nDept').innerHTML = '<option value="">— None —</option>' + opts;
+    document.getElementById('eDept').innerHTML = '<option value="">— None —</option>' + opts;
+
+    if (isAdmin) {
+      // Admin: show dept filter dropdown in toolbar, editable dept in add/edit
+      document.getElementById('deptFilterDrop').style.display = '';
+      document.getElementById('deptFilterDrop').innerHTML =
+        '<option value="">All Departments</option>' + opts;
+      // Add form: dept dropdown visible, read-only div hidden
+      document.getElementById('nDept').style.display = '';
+      document.getElementById('nDeptReadonly').style.display = 'none';
+    } else {
+      // Non-admin: hide dept dropdown in add form, show read-only label
+      const myDept = cu.department || '';
+      document.getElementById('nDept').style.display = 'none';
+      const roEl = document.getElementById('nDeptReadonly');
+      roEl.style.display = '';
+      roEl.textContent = myDept || '(no department assigned)';
+    }
+  }
+
+  // ── INIT ─────────────────────────────────────────────────────────
+  document.getElementById('nInvDate').value = today();
+  document.getElementById('detailModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+  document.getElementById('searchIn').addEventListener('keydown', e=>{ if(e.key==='Escape') { document.getElementById('searchIn').value=''; renderTable(); } });
+
+  // Sort icon init
+  document.getElementById('si-invDate').textContent = '↓';
+  document.getElementById('si-invDate').parentElement.classList.add('sorted');
+
+  // SaaS date range defaults: Jan of current year → current month
+  (function() {
+    const now = new Date();
+    const yr  = now.getFullYear();
+    const mo  = String(now.getMonth() + 1).padStart(2, '0');
+    document.getElementById('saasFrom').value = `${yr}-01`;
+    document.getElementById('saasTo').value   = `${yr}-${mo}`;
+  })();
+
+  // auth.js sets CURRENT_USER synchronously in localStorage mode; async in Supabase mode
+  // Use a short poll so both paths work without tight coupling
+  (function waitForUser(tries) {
+    if (window.CURRENT_USER || tries <= 0) { initDeptAccess(); renderAll(); return; }
+    setTimeout(() => waitForUser(tries - 1), 80);
+  })(25);
+
+  // Theme
+  function toggleTheme(){const l=document.documentElement.classList.toggle('light');localStorage.setItem('tf_theme',l?'light':'dark');document.getElementById('themeToggle').textContent=l?'🌙 Dark':'☀️ Light';}
+  document.getElementById('themeToggle').textContent=document.documentElement.classList.contains('light')?'🌙 Dark':'☀️ Light';
+</script>
+</div><!-- /.main-wrap -->
+</body>
+</html>

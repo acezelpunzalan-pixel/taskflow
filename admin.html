@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Database</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #222535; --border: #2e3148;
+    --accent: #6c63ff; --accent2: #a78bfa; --text: #e2e8f0; --muted: #8892a4;
+    --green: #22c55e; --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6; --orange: #f97316;
+    --r: 10px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+  /* SIDEBAR NAV */
+  .sidebar { width: 196px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; padding: 20px 12px 16px; }
+  .logo { font-size: 1.15rem; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; padding: 4px 8px 18px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .sidebar-nav a { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 0.84rem; font-weight: 500; transition: all 0.15s; white-space: nowrap; }
+  .sidebar-nav a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-nav a.active { background: rgba(108,99,255,0.14); color: var(--accent2); font-weight: 600; }
+  .nav-group-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--border); padding: 10px 10px 3px; margin-top: 2px; pointer-events: none; }
+
+  /* MAIN CONTENT */
+  .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
+  main { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+  /* PAGE HEADER */
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: 1.4rem; font-weight: 700; }
+  .page-sub { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+  /* TABS */
+  .tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto; }
+  .tab-btn { background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 10px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent2); border-bottom-color: var(--accent); }
+  .tab-count { background: var(--surface2); border-radius: 99px; padding: 1px 7px; font-size: 0.72rem; font-weight: 700; }
+  .tab-btn.active .tab-count { background: rgba(108,99,255,0.2); color: var(--accent2); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .sc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; position: relative; overflow: hidden; }
+  .sc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .sc.c0::before{background:var(--accent)} .sc.c1::before{background:var(--green)} .sc.c2::before{background:var(--yellow)} .sc.c3::before{background:var(--blue)} .sc.c4::before{background:var(--red)} .sc.c5::before{background:var(--orange)}
+  .sc-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .sc-val { font-size: 1.7rem; font-weight: 700; }
+  .sc.c0 .sc-val{color:var(--accent2)} .sc.c1 .sc-val{color:var(--green)} .sc.c2 .sc-val{color:var(--yellow)} .sc.c3 .sc-val{color:var(--blue)} .sc.c4 .sc-val{color:var(--red)} .sc.c5 .sc-val{color:var(--orange)}
+
+  /* LAYOUT */
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+  /* FORM PANEL */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; }
+  .panel-title { font-size: 0.9rem; font-weight: 600; color: var(--accent2); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .fg { display: flex; flex-direction: column; gap: 6px; margin-bottom: 13px; }
+  .fg label { font-size: 0.73rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  input[type=text], input[type=email], input[type=tel], select, textarea {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text); padding: 8px 11px; font-size: 0.87rem; font-family: inherit;
+    outline: none; transition: border-color 0.2s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 60px; }
+
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 9px 16px; font-size: 0.86rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; width: 100%; }
+  .btn:hover { background: #7c74ff; } .btn:active { transform: scale(0.97); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { color: var(--text); background: var(--surface2); }
+  .btn-sm { padding: 5px 12px; font-size: 0.77rem; border-radius: 6px; width: auto; }
+  .form-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .form-actions .btn { flex: 1; }
+
+  /* STATUS TOGGLE */
+  .status-toggle { display: flex; gap: 8px; }
+  .status-opt { flex: 1; padding: 7px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface2); color: var(--muted); font-size: 0.81rem; font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .status-opt.sel-active   { border-color: var(--green);  background: rgba(34,197,94,0.12);  color: var(--green); }
+  .status-opt.sel-inactive { border-color: var(--yellow); background: rgba(245,158,11,0.1); color: var(--yellow); }
+
+  /* TOOLBAR */
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .search-in { background: var(--surface); border: 1px solid var(--border); border-radius: 99px; color: var(--text); padding: 7px 16px; font-size: 0.83rem; outline: none; flex: 1; min-width: 150px; }
+  .search-in:focus { border-color: var(--accent); }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 99px; padding: 5px 13px; font-size: 0.79rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* RECORD CARDS (shared by Sites, Vendors, Users) */
+  .rec-list { display: flex; flex-direction: column; gap: 8px; }
+  .rec-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 9px;
+    padding: 12px 14px; display: flex; align-items: flex-start; gap: 12px;
+    cursor: pointer; transition: border-color 0.2s, transform 0.15s;
+  }
+  .rec-card:hover { border-color: var(--accent); transform: translateX(2px); }
+  .rec-card.selected { border-color: var(--accent); background: rgba(108,99,255,0.07); }
+  .rec-card.inactive { opacity: 0.52; }
+  .rec-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+  .ic-active   { background: rgba(108,99,255,0.15); }
+  .ic-inactive { background: rgba(136,146,164,0.1); }
+  .rec-info { flex: 1; min-width: 0; }
+  .rec-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rec-meta { font-size: 0.75rem; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+  .rec-badges { display: flex; gap: 5px; align-items: center; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+  /* CHIPS & BADGES */
+  .badge { font-size: 0.69rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+  .b-active   { background: rgba(34,197,94,0.12);  color: #4ade80; }
+  .b-inactive { background: rgba(245,158,11,0.12); color: #fbbf24; }
+  .chip { border-radius: 5px; padding: 2px 7px; font-size: 0.71rem; font-weight: 500; }
+  .chip-blue   { background: rgba(59,130,246,0.12);  color: #60a5fa; }
+  .chip-purple { background: rgba(108,99,255,0.12);  color: var(--accent2); }
+  .chip-green  { background: rgba(34,197,94,0.12);   color: #4ade80; }
+  .chip-orange { background: rgba(249,115,22,0.12);  color: #fb923c; }
+  .chip-yellow { background: rgba(245,158,11,0.12);  color: #fbbf24; }
+
+  .row-acts { display: flex; gap: 5px; }
+  .act { background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 5px; padding: 3px 8px; font-size: 0.72rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .act:hover        { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .act.toggle-act:hover { background: var(--yellow); border-color: var(--yellow); color: #000; }
+  .act.del:hover    { background: var(--red);    color: #fff; border-color: var(--red); }
+
+  .empty { text-align: center; color: var(--muted); padding: 36px 0; font-size: 0.86rem; }
+
+  /* USAGE SECTION */
+  .usage-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .usage-title { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+  .usage-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.81rem; }
+  .usage-row:last-child { border-bottom: none; }
+
+  /* INVOICES SUMMARY TAB */
+  .inv-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 22px; }
+  .inv-sum-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; }
+  .inv-sum-label { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .inv-sum-val { font-size: 1.5rem; font-weight: 700; }
+  .inv-vendor-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; font-size: 0.84rem; }
+  .inv-vendor-row .ivr-name { font-weight: 600; }
+  .inv-vendor-row .ivr-meta { color: var(--muted); font-size: 0.77rem; }
+
+  /* OVERLAY / MODAL */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 26px; width: 90%; max-width: 440px; transform: translateY(16px); transition: transform 0.2s; }
+  .overlay.open .modal { transform: translateY(0); }
+  .modal h3 { font-size: 1rem; font-weight: 600; margin-bottom: 10px; }
+  .modal p { font-size: 0.86rem; color: var(--muted); line-height: 1.5; margin-bottom: 20px; }
+  .modal-acts { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 17px; font-size: 0.84rem; z-index: 300; transform: translateY(20px); opacity: 0; transition: all 0.25s; pointer-events: none; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.ok  { border-color: var(--green); color: var(--green); }
+  .toast.err { border-color: var(--red);   color: var(--red); }
+
+  /* ROLE COLORS */
+  .role-admin    { background: rgba(239,68,68,0.12);  color: #f87171; }
+  .role-reviewer { background: rgba(245,158,11,0.12); color: #fbbf24; }
+  .role-field    { background: rgba(59,130,246,0.12); color: #60a5fa; }
+  .role-viewer   { background: rgba(136,146,164,0.12);color: #a0aec0; }
+
+  /* ── ROLES / PERMISSION MATRIX ─────────────────────────── */
+  .perm-wrap { overflow-x: auto; margin: 14px 0; }
+  .perm-table { border-collapse: collapse; width: 100%; min-width: 420px; }
+  .perm-table th {
+    font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
+    font-weight: 700; padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .perm-table th.res-th { text-align: left; min-width: 120px; padding-left: 2px; }
+  .perm-table td { padding: 5px 8px; border-bottom: 1px solid rgba(46,49,72,0.5); vertical-align: middle; }
+  .perm-table td.res-td { font-size: 0.8rem; font-weight: 500; white-space: nowrap; }
+  .perm-table tr:last-child td { border-bottom: none; }
+  .perm-table tr:hover td { background: rgba(108,99,255,0.04); }
+
+  .perm-cb { text-align: center; }
+  .perm-cb input[type=checkbox] {
+    width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer;
+    border-radius: 3px; vertical-align: middle;
+  }
+  .perm-section-hdr td {
+    background: var(--surface2); font-size: 0.7rem; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 4px 6px; border-bottom: 1px solid var(--border);
+  }
+
+  /* Select-all row */
+  .perm-all-row td { background: rgba(108,99,255,0.05); font-size: 0.75rem; color: var(--accent2); font-weight: 600; }
+
+  /* Color swatches */
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .swatch {
+    width: 24px; height: 24px; border-radius: 6px; cursor: pointer; border: 2px solid transparent;
+    transition: transform 0.12s, border-color 0.12s;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.selected { border-color: #fff; transform: scale(1.15); }
+
+  /* Role cards */
+  .role-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .role-card:hover { border-color: var(--accent); transform: translateX(2px); }
+  .role-card.selected { border-color: var(--accent); background: rgba(108,99,255,0.07); }
+  .role-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .role-card-name { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 700; }
+  .role-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .role-card-desc { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; }
+
+  /* Mini permission grid on card */
+  .perm-mini { display: flex; flex-wrap: wrap; gap: 4px; }
+  .perm-mini-item { font-size: 0.68rem; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; color: var(--muted); }
+  .perm-mini-item.has-v  { border-color: rgba(108,99,255,0.4); color: var(--accent2); background: rgba(108,99,255,0.08); }
+  .perm-mini-item.has-c  { border-color: rgba(34,197,94,0.4);  color: #4ade80; background: rgba(34,197,94,0.07); }
+  .perm-mini-item.has-cd { border-color: rgba(239,68,68,0.4);  color: #f87171; background: rgba(239,68,68,0.07); }
+  /* THEME TOGGLE */
+  .theme-toggle { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 0.81rem; color: var(--muted); transition: all 0.15s; font-family: inherit; line-height: 1; width: 100%; text-align: left; margin-top: auto; }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent2); background: rgba(108,99,255,0.08); }
+  /* LIGHT THEME */
+  html.light { --bg: #f0f2f8; --surface: #ffffff; --surface2: #e8eaf4; --border: #d0d4e8; --text: #1a1d2e; --muted: #64748b; }
+</style>
+<script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">Task<span>Flow</span></div>
+  <nav class="sidebar-nav">
+    <a href="index.html">📋 Dashboard</a>
+    <div class="nav-group-label">Operations</div>
+    <a href="fieldwork.html">🔧 Field Work</a>
+    <a href="invoices.html">🧾 Invoices</a>
+    <a href="projects.html">📁 Projects</a>
+    <div class="nav-group-label">Budget</div>
+    <a href="capex.html">💰 CapEx</a>
+    <a href="opex.html">📊 OpEx</a>
+    <div class="nav-group-label">Assets</div>
+    <a href="devices.html">💻 Devices</a>
+    <a href="branches.html">🏢 Branches</a>
+    <div class="nav-group-label">System</div>
+    <a href="workflow.html">🔀 Workflow</a>
+    <a href="admin.html" class="active">⚙️ Admin</a>
+  </nav>
+  <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">☀️ Light</button>
+</aside>
+
+<div class="main-wrap">
+<main>
+
+  <div class="page-header">
+    <div class="page-title">⚙ Admin — Database</div>
+    <div class="page-sub">Manage master records: sites, vendors, invoices, and users.</div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('sites',this)">🏢 Sites <span class="tab-count" id="tc-sites">0</span></button>
+    <button class="tab-btn" onclick="switchTab('vendors',this)">🏭 Vendors <span class="tab-count" id="tc-vendors">0</span></button>
+    <button class="tab-btn" onclick="switchTab('invoices',this)">🧾 Invoices <span class="tab-count" id="tc-invoices">0</span></button>
+    <button class="tab-btn" onclick="switchTab('users',this)">👤 Users <span class="tab-count" id="tc-users">0</span></button>
+    <button class="tab-btn" onclick="switchTab('roles',this)">🔐 Roles <span class="tab-count" id="tc-roles">0</span></button>
+  </div>
+
+  <!-- ══════════════════ TAB: SITES ══════════════════ -->
+  <div class="tab-panel active" id="tab-sites">
+    <div class="stats">
+      <div class="sc c0"><div class="sc-label">Total Sites</div><div class="sc-val" id="s-stTotal">0</div></div>
+      <div class="sc c1"><div class="sc-label">Active</div><div class="sc-val" id="s-stActive">0</div></div>
+      <div class="sc c2"><div class="sc-label">Inactive</div><div class="sc-val" id="s-stInactive">0</div></div>
+      <div class="sc c3"><div class="sc-label">In Use</div><div class="sc-val" id="s-stInUse">0</div></div>
+    </div>
+    <div class="layout">
+      <div class="panel" id="siteFormPanel">
+        <div class="panel-title">
+          <span id="siteFormTitle">+ Add New Site</span>
+          <button class="btn btn-ghost btn-sm" id="siteCancelBtn" onclick="cancelSiteEdit()" style="display:none">✕ Cancel</button>
+        </div>
+        <div class="fg"><label>Site Name *</label><input type="text" id="sfName" placeholder="e.g. Building A" /></div>
+        <div class="fg"><label>Short Code</label><input type="text" id="sfCode" placeholder="e.g. BLDG-A" maxlength="12" /></div>
+        <div class="fg"><label>Category</label>
+          <select id="sfCategory">
+            <option>Office</option><option>Warehouse</option><option>Site</option>
+            <option>Building</option><option>Plant</option><option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>Address / Notes</label><textarea id="sfAddress" placeholder="Full address or details…"></textarea></div>
+        <div class="fg"><label>Status</label>
+          <div class="status-toggle">
+            <div class="status-opt sel-active" id="sToggleActive" onclick="sSelectStatus('active')">✓ Active</div>
+            <div class="status-opt" id="sToggleInactive" onclick="sSelectStatus('inactive')">— Inactive</div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" id="siteSubmitBtn" onclick="submitSiteForm()">Add Site</button>
+        </div>
+        <div class="usage-section" id="siteUsageSection" style="display:none">
+          <div class="usage-title">Usage in Records</div>
+          <div id="siteUsageList"></div>
+        </div>
+      </div>
+      <div>
+        <div class="toolbar">
+          <input class="search-in" id="siteSearch" type="text" placeholder="Search sites…" oninput="renderSites()" />
+          <button class="filter-btn active" onclick="setSiteFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setSiteFilter('active',this)">Active</button>
+          <button class="filter-btn" onclick="setSiteFilter('inactive',this)">Inactive</button>
+        </div>
+        <div class="rec-list" id="siteList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ TAB: VENDORS ══════════════════ -->
+  <div class="tab-panel" id="tab-vendors">
+    <div class="stats">
+      <div class="sc c0"><div class="sc-label">Total Vendors</div><div class="sc-val" id="v-stTotal">0</div></div>
+      <div class="sc c1"><div class="sc-label">Active</div><div class="sc-val" id="v-stActive">0</div></div>
+      <div class="sc c2"><div class="sc-label">Inactive</div><div class="sc-val" id="v-stInactive">0</div></div>
+      <div class="sc c3"><div class="sc-label">With Visits</div><div class="sc-val" id="v-stVisits">0</div></div>
+      <div class="sc c4"><div class="sc-label">With Invoices</div><div class="sc-val" id="v-stInvoices">0</div></div>
+    </div>
+    <div class="layout">
+      <div class="panel" id="vendorFormPanel">
+        <div class="panel-title">
+          <span id="vendorFormTitle">+ Add Vendor</span>
+          <button class="btn btn-ghost btn-sm" id="vendorCancelBtn" onclick="cancelVendorEdit()" style="display:none">✕ Cancel</button>
+        </div>
+        <div class="fg"><label>Vendor Name *</label><input type="text" id="vfName" placeholder="e.g. CoolTech Services" /></div>
+        <div class="fg"><label>Short Code</label><input type="text" id="vfCode" placeholder="e.g. CT-SVC" maxlength="12" /></div>
+        <div class="fg"><label>Category</label>
+          <select id="vfCategory">
+            <option>Electrical</option><option>Plumbing</option><option>HVAC</option>
+            <option>Security</option><option>Cleaning</option><option>IT / SaaS</option>
+            <option>Landscaping</option><option>Civil</option><option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>Contact Person</label><input type="text" id="vfContact" placeholder="Full name" /></div>
+        <div class="fg"><label>Email</label><input type="email" id="vfEmail" placeholder="contact@vendor.com" /></div>
+        <div class="fg"><label>Phone</label><input type="tel" id="vfPhone" placeholder="+1 555 000 0000" /></div>
+        <div class="fg"><label>Notes</label><textarea id="vfNotes" placeholder="Contract details, notes…"></textarea></div>
+        <div class="fg"><label>Status</label>
+          <div class="status-toggle">
+            <div class="status-opt sel-active" id="vToggleActive" onclick="vSelectStatus('active')">✓ Active</div>
+            <div class="status-opt" id="vToggleInactive" onclick="vSelectStatus('inactive')">— Inactive</div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" id="vendorSubmitBtn" onclick="submitVendorForm()">Add Vendor</button>
+        </div>
+        <div class="usage-section" id="vendorUsageSection" style="display:none">
+          <div class="usage-title">Usage in Records</div>
+          <div id="vendorUsageList"></div>
+        </div>
+      </div>
+      <div>
+        <div class="toolbar">
+          <input class="search-in" id="vendorSearch" type="text" placeholder="Search vendors…" oninput="renderVendors()" />
+          <button class="filter-btn active" onclick="setVendorFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setVendorFilter('active',this)">Active</button>
+          <button class="filter-btn" onclick="setVendorFilter('inactive',this)">Inactive</button>
+        </div>
+        <div class="rec-list" id="vendorList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ TAB: INVOICES ══════════════════ -->
+  <div class="tab-panel" id="tab-invoices">
+    <div class="stats">
+      <div class="sc c0"><div class="sc-label">Total</div><div class="sc-val" id="i-stTotal">0</div></div>
+      <div class="sc c1"><div class="sc-label">Approved</div><div class="sc-val" id="i-stApproved">0</div></div>
+      <div class="sc c2"><div class="sc-label">Pending</div><div class="sc-val" id="i-stPending">0</div></div>
+      <div class="sc c3"><div class="sc-label">Paid</div><div class="sc-val" id="i-stPaid">0</div></div>
+      <div class="sc c4"><div class="sc-label">Overdue</div><div class="sc-val" id="i-stOverdue">0</div></div>
+      <div class="sc c5"><div class="sc-label">Total Amount</div><div class="sc-val" id="i-stAmount">$0</div></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+      <div style="font-size:0.88rem;color:var(--muted)">Invoice records are managed in the <a href="invoices.html" style="color:var(--accent2)">Invoices page</a>. This view shows a summary by vendor.</div>
+      <a href="invoices.html" class="btn btn-sm" style="text-decoration:none;width:auto">Open Invoices →</a>
+    </div>
+    <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:10px">By Vendor</div>
+    <div id="invVendorSummary"></div>
+  </div>
+
+  <!-- ══════════════════ TAB: USERS ══════════════════ -->
+  <div class="tab-panel" id="tab-users">
+    <!-- Active Session Banner (localStorage mode only) -->
+    <div id="sessionBanner" style="display:none;background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);border-radius:9px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:0.77rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;font-weight:600;margin-bottom:3px">Active Session (Local Mode)</div>
+        <div id="sessionLabel" style="font-size:0.9rem;font-weight:700;color:var(--accent2)">—</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="sessionUserPick" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:6px 10px;font-size:0.82rem;font-family:inherit;outline:none"></select>
+        <button class="btn btn-sm" onclick="switchSessionUser()">Switch</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="sc c0"><div class="sc-label">Total Users</div><div class="sc-val" id="u-stTotal">0</div></div>
+      <div class="sc c1"><div class="sc-label">Active</div><div class="sc-val" id="u-stActive">0</div></div>
+      <div class="sc c2"><div class="sc-label">Inactive</div><div class="sc-val" id="u-stInactive">0</div></div>
+      <div class="sc c3"><div class="sc-label">Admins</div><div class="sc-val" id="u-stAdmins">0</div></div>
+    </div>
+    <div class="layout">
+      <div class="panel" id="userFormPanel">
+        <div class="panel-title">
+          <span id="userFormTitle">+ Add User</span>
+          <button class="btn btn-ghost btn-sm" id="userCancelBtn" onclick="cancelUserEdit()" style="display:none">✕ Cancel</button>
+        </div>
+        <div class="fg"><label>Full Name *</label><input type="text" id="ufName" placeholder="First Last" /></div>
+        <div class="fg"><label>Role</label>
+          <select id="ufRole">
+            <option value="Admin">Admin</option>
+            <option value="Reviewer">Reviewer</option>
+            <option value="Field Staff">Field Staff</option>
+            <option value="Viewer">Viewer</option>
+          </select>
+        </div>
+        <div class="fg"><label>Department</label>
+          <select id="ufDept">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div class="fg"><label>Email</label><input type="email" id="ufEmail" placeholder="user@company.com" /></div>
+        <div class="fg"><label>Phone</label><input type="tel" id="ufPhone" placeholder="+1 555 000 0000" /></div>
+        <div class="fg"><label>Assigned Vendor</label>
+          <select id="ufVendor"><option value="">— None —</option></select>
+        </div>
+        <div class="fg"><label>Assigned Sites (comma-separated)</label>
+          <input type="text" id="ufSites" placeholder="e.g. Building A, Warehouse 1" list="siteNamesList" />
+          <datalist id="siteNamesList"></datalist>
+        </div>
+        <div class="fg"><label>Notes</label><textarea id="ufNotes" placeholder="Additional notes…"></textarea></div>
+        <div class="fg"><label>Status</label>
+          <div class="status-toggle">
+            <div class="status-opt sel-active" id="uToggleActive" onclick="uSelectStatus('active')">✓ Active</div>
+            <div class="status-opt" id="uToggleInactive" onclick="uSelectStatus('inactive')">— Inactive</div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" id="userSubmitBtn" onclick="submitUserForm()">Add User</button>
+        </div>
+      </div>
+      <div>
+        <div class="toolbar">
+          <input class="search-in" id="userSearch" type="text" placeholder="Search users…" oninput="renderUsers()" />
+          <button class="filter-btn active" onclick="setUserFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setUserFilter('active',this)">Active</button>
+          <button class="filter-btn" onclick="setUserFilter('inactive',this)">Inactive</button>
+          <button class="filter-btn" onclick="setUserFilter('Admin',this)">Admin</button>
+          <button class="filter-btn" onclick="setUserFilter('Field Staff',this)">Field</button>
+          <select id="userDeptFilter" onchange="renderUsers()" style="background:var(--surface);border:1px solid var(--border);border-radius:99px;color:var(--muted);padding:5px 12px;font-size:0.79rem;font-family:inherit;outline:none;cursor:pointer">
+            <option value="">All Depts</option>
+          </select>
+        </div>
+        <div class="rec-list" id="userList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ TAB: ROLES ══════════════════ -->
+  <div class="tab-panel" id="tab-roles">
+    <div class="stats">
+      <div class="sc c0"><div class="sc-label">Total Roles</div><div class="sc-val" id="r-stTotal">0</div></div>
+      <div class="sc c1"><div class="sc-label">Full Access</div><div class="sc-val" id="r-stFull">0</div></div>
+      <div class="sc c2"><div class="sc-label">Read Only</div><div class="sc-val" id="r-stReadOnly">0</div></div>
+      <div class="sc c3"><div class="sc-label">Assigned Users</div><div class="sc-val" id="r-stAssigned">0</div></div>
+    </div>
+    <div class="layout">
+      <!-- LEFT: ROLE FORM -->
+      <div class="panel" id="roleFormPanel">
+        <div class="panel-title">
+          <span id="roleFormTitle">+ Create Role</span>
+          <button class="btn btn-ghost btn-sm" id="roleCancelBtn" onclick="cancelRoleEdit()" style="display:none">✕ Cancel</button>
+        </div>
+        <div class="fg"><label>Role Name *</label><input type="text" id="rfName" placeholder="e.g. Site Manager" /></div>
+        <div class="fg"><label>Description</label><input type="text" id="rfDesc" placeholder="What this role can do…" /></div>
+        <div class="fg">
+          <label>Badge Color</label>
+          <div class="color-swatches" id="colorSwatches"></div>
+          <input type="hidden" id="rfColor" value="#6c63ff" />
+        </div>
+
+        <!-- PERMISSION MATRIX -->
+        <div class="fg" style="margin-bottom:4px">
+          <label>Permissions</label>
+        </div>
+        <div class="perm-wrap">
+          <table class="perm-table" id="permMatrix">
+            <thead>
+              <tr>
+                <th class="res-th">Section</th>
+                <th>View</th><th>Create</th><th>Edit</th><th>Delete</th><th>Approve</th>
+              </tr>
+            </thead>
+            <tbody id="permMatrixBody"></tbody>
+          </table>
+        </div>
+
+        <div class="form-actions" style="margin-top:10px">
+          <button class="btn" id="roleSubmitBtn" onclick="submitRoleForm()">Create Role</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: ROLES LIST -->
+      <div>
+        <div class="toolbar">
+          <input class="search-in" id="roleSearch" type="text" placeholder="Search roles…" oninput="renderRoles()" />
+        </div>
+        <div id="roleList"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- CONFIRM DELETE MODAL -->
+<div class="overlay" id="confirmModal">
+  <div class="modal">
+    <h3 id="confirmTitle">Delete Record?</h3>
+    <p id="confirmMsg"></p>
+    <div class="modal-acts">
+      <button class="btn btn-ghost btn-sm" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-sm" style="background:var(--red);width:auto" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ══════════════════════════════════════════════════════════
+  // SHARED UTILS
+  // ══════════════════════════════════════════════════════════
+  function uid()  { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+  function today(){ return new Date().toISOString().split('T')[0]; }
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  let toastTimer;
+  function toast(msg, type='ok') {
+    const el = document.getElementById('toast');
+    el.textContent = (type==='ok'?'✓ ':'✕ ')+msg;
+    el.className = `toast ${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove('show'), 2800);
+  }
+
+  let deletingId = null, deletingType = null, deletingCallback = null;
+  function confirmDel(id, type, name, msg, cb) {
+    deletingId=id; deletingType=type; deletingCallback=cb;
+    document.getElementById('confirmTitle').textContent = `Delete ${type}?`;
+    document.getElementById('confirmMsg').textContent = msg || `"${name}" will be permanently removed.`;
+    document.getElementById('confirmModal').classList.add('open');
+  }
+  function confirmDelete() { if(deletingCallback) deletingCallback(deletingId); closeConfirm(); }
+  function closeConfirm() { document.getElementById('confirmModal').classList.remove('open'); }
+  document.getElementById('confirmModal').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
+
+  // ── TABS ──────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    btn.classList.add('active');
+    if (name==='invoices') renderInvoiceTab();
+    if (name==='users')    { refreshUserVendorDropdown(); _populateDeptDropdowns(); }
+    if (name==='roles')  { buildSwatches(); buildPermMatrix(roleEditingId ? (roles.find(r=>r.id===roleEditingId)||{}).perms : {}); renderAllRoles(); }
+  }
+
+  function updateTabCounts() {
+    document.getElementById('tc-sites').textContent   = sites.length;
+    document.getElementById('tc-vendors').textContent = vendors.length;
+    document.getElementById('tc-users').textContent   = users.length;
+    document.getElementById('tc-roles').textContent  = roles.length;
+    document.getElementById('tc-invoices').textContent = _cachedInvoices.length;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // SITES
+  // ══════════════════════════════════════════════════════════
+  let sites = [];
+  let _cachedVisits = [], _cachedInvoices = [];
+  let siteEditingId = null, siteStatusForm = 'active', siteFilter = 'all';
+  const siteIcons = {Office:'🏢',Warehouse:'🏭',Site:'📍',Building:'🏗',Plant:'⚙',Other:'📌'};
+
+  // seed runs once from DB init if empty — see async init() below
+
+  function mkSite(name,code,category,address,status) {
+    return {id:uid(),name,code,category,address,status,created:today()};
+  }
+  async function saveSites() { /* no-op: saves happen per-record via DB.saveSite() */ }
+  function siteUsageCount(name) {
+    return { visits: _cachedVisits.filter(v=>v.site===name).length, invoices: _cachedInvoices.filter(i=>i.site===name).length };
+  }
+
+  function sSelectStatus(s) {
+    siteStatusForm=s;
+    document.getElementById('sToggleActive').className   = 'status-opt'+(s==='active'  ?' sel-active':'');
+    document.getElementById('sToggleInactive').className = 'status-opt'+(s==='inactive'?' sel-inactive':'');
+  }
+
+  async function submitSiteForm() {
+    const name = document.getElementById('sfName').value.trim();
+    if (!name) { document.getElementById('sfName').focus(); toast('Site name required.','err'); return; }
+    const record = { name, code:document.getElementById('sfCode').value.trim(), category:document.getElementById('sfCategory').value, address:document.getElementById('sfAddress').value.trim(), status:siteStatusForm };
+    if (siteEditingId) {
+      record.id = siteEditingId;
+    } else {
+      if (sites.find(s=>s.name.toLowerCase()===name.toLowerCase())) { toast('Site already exists.','err'); return; }
+    }
+    const { error } = await DB.saveSite(record);
+    if (error) { toast('Save failed: '+error.message,'err'); return; }
+    sites = await DB.getSites();
+    toast(siteEditingId ? 'Site updated.' : 'Site added.');
+    siteEditingId ? cancelSiteEdit() : clearSiteForm();
+    renderAllSites();
+  }
+
+  function clearSiteForm() {
+    ['sfName','sfCode','sfAddress'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('sfCategory').value='Office'; sSelectStatus('active');
+  }
+
+  function editSite(id) {
+    const s = sites.find(x=>x.id===id); if(!s) return;
+    siteEditingId=id;
+    document.getElementById('sfName').value=s.name; document.getElementById('sfCode').value=s.code||'';
+    document.getElementById('sfCategory').value=s.category||'Office'; document.getElementById('sfAddress').value=s.address||'';
+    sSelectStatus(s.status||'active');
+    document.getElementById('siteFormTitle').textContent='✎ Editing: '+s.name;
+    document.getElementById('siteSubmitBtn').textContent='Save Changes';
+    document.getElementById('siteCancelBtn').style.display='';
+    const u=siteUsageCount(s.name);
+    document.getElementById('siteUsageSection').style.display='';
+    document.getElementById('siteUsageList').innerHTML = u.visits+u.invoices===0
+      ? '<div style="color:var(--muted);font-size:0.81rem">Not referenced in any records.</div>'
+      : `<div class="usage-row"><span>Field Work visits</span><span class="chip chip-purple">${u.visits}</span></div><div class="usage-row"><span>Invoices</span><span class="chip chip-purple">${u.invoices}</span></div>`;
+    document.getElementById('siteFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
+    renderSites(); document.getElementById('sfName').focus();
+  }
+
+  function cancelSiteEdit() {
+    siteEditingId=null; clearSiteForm();
+    document.getElementById('siteFormTitle').textContent='+ Add New Site';
+    document.getElementById('siteSubmitBtn').textContent='Add Site';
+    document.getElementById('siteCancelBtn').style.display='none';
+    document.getElementById('siteUsageSection').style.display='none';
+    renderSites();
+  }
+
+  async function toggleSiteStatus(id) {
+    const s=sites.find(x=>x.id===id); if(!s) return;
+    s.status=s.status==='active'?'inactive':'active';
+    await DB.saveSite(s);
+    sites = await DB.getSites();
+    renderAllSites(); toast(`${s.name} set to ${s.status}.`);
+  }
+
+  function deleteSite(id) {
+    const s=sites.find(x=>x.id===id); if(!s) return;
+    const u=siteUsageCount(s.name);
+    confirmDel(id,'Site',s.name,
+      u.visits+u.invoices>0
+        ? `"${s.name}" is used in ${u.visits} visit(s) and ${u.invoices} invoice(s). It will be removed from dropdowns but records are kept.`
+        : `"${s.name}" has no records. It will be permanently removed.`,
+      async (did)=>{ await DB.deleteSite(did); sites=await DB.getSites(); renderAllSites(); toast('Site deleted.'); if(siteEditingId===did) cancelSiteEdit(); }
+    );
+  }
+
+  function setSiteFilter(f,btn) {
+    siteFilter=f;
+    document.querySelectorAll('#tab-sites .filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); renderSites();
+  }
+
+  function renderAllSites() {
+    document.getElementById('s-stTotal').textContent    = sites.length;
+    document.getElementById('s-stActive').textContent   = sites.filter(s=>s.status==='active').length;
+    document.getElementById('s-stInactive').textContent = sites.filter(s=>s.status==='inactive').length;
+    document.getElementById('s-stInUse').textContent    = sites.filter(s=>siteUsageCount(s.name).visits+siteUsageCount(s.name).invoices>0).length;
+    updateTabCounts();
+    renderSites();
+    // update site datalist for users tab
+    document.getElementById('siteNamesList').innerHTML = sites.filter(s=>s.status==='active').map(s=>`<option value="${esc(s.name)}">`).join('');
+  }
+
+  function renderSites() {
+    const q=document.getElementById('siteSearch').value.toLowerCase();
+    const filtered=sites.filter(s=>{
+      const mf=siteFilter==='all'||s.status===siteFilter;
+      const ms=!q||[s.name,s.code,s.category,s.address].some(f=>(f||'').toLowerCase().includes(q));
+      return mf&&ms;
+    });
+    const el=document.getElementById('siteList');
+    if(!filtered.length){el.innerHTML='<div class="empty">No sites found.</div>';return;}
+    el.innerHTML=filtered.map(s=>{
+      const u=siteUsageCount(s.name);
+      return `<div class="rec-card ${s.status==='inactive'?'inactive':''} ${s.id===siteEditingId?'selected':''}" onclick="editSite('${s.id}')">
+        <div class="rec-icon ${s.status==='active'?'ic-active':'ic-inactive'}">${siteIcons[s.category]||'📌'}</div>
+        <div class="rec-info">
+          <div class="rec-name">${esc(s.name)}${s.code?` <span style="font-size:0.7rem;color:var(--muted)">[${esc(s.code)}]</span>`:''}</div>
+          <div class="rec-meta">
+            <span>${esc(s.category||'')}</span>
+            ${s.address?`<span title="${esc(s.address)}">📍 ${esc(s.address.length>32?s.address.slice(0,32)+'…':s.address)}</span>`:''}
+          </div>
+        </div>
+        <div class="rec-badges">
+          <span class="badge ${s.status==='active'?'b-active':'b-inactive'}">${s.status}</span>
+          ${u.visits+u.invoices>0?`<span class="chip chip-purple">Used ${u.visits+u.invoices}×</span>`:''}
+          <div class="row-acts" onclick="event.stopPropagation()">
+            <a class="act" href="branches.html?site=${encodeURIComponent(s.name)}" style="text-decoration:none" title="View branch">🏢</a>
+            <button class="act toggle-act" onclick="toggleSiteStatus('${s.id}')">${s.status==='active'?'Deactivate':'Activate'}</button>
+            <button class="act del" onclick="deleteSite('${s.id}')">✕</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // VENDORS
+  // ══════════════════════════════════════════════════════════
+  let vendors = [];
+  let vendorEditingId = null, vendorStatusForm = 'active', vendorFilter = 'all';
+  const vendorIcons = {'Electrical':'⚡','Plumbing':'🔧','HVAC':'❄','Security':'🔒','Cleaning':'🧹','IT / SaaS':'💻','Landscaping':'🌿','Civil':'🏗','Other':'🏭'};
+
+  // seed runs once from async init() below if empty
+
+  function mkVendor(name,code,category,contact,email,phone,notes,status) {
+    return {id:uid(),name,code,category,contact,email,phone,notes,status,created:today()};
+  }
+  async function saveVendors() { /* no-op: saves happen per-record via DB.saveVendor() */ }
+  function vendorUsageCount(name) {
+    return { visits: _cachedVisits.filter(v=>v.vendor===name).length, invoices: _cachedInvoices.filter(i=>i.vendor===name).length };
+  }
+
+  function vSelectStatus(s) {
+    vendorStatusForm=s;
+    document.getElementById('vToggleActive').className   = 'status-opt'+(s==='active'  ?' sel-active':'');
+    document.getElementById('vToggleInactive').className = 'status-opt'+(s==='inactive'?' sel-inactive':'');
+  }
+
+  async function submitVendorForm() {
+    const name=document.getElementById('vfName').value.trim();
+    if(!name){document.getElementById('vfName').focus();toast('Vendor name required.','err');return;}
+    const record = {
+      name, code:document.getElementById('vfCode').value.trim(), category:document.getElementById('vfCategory').value,
+      contact:document.getElementById('vfContact').value.trim(), email:document.getElementById('vfEmail').value.trim(),
+      phone:document.getElementById('vfPhone').value.trim(), notes:document.getElementById('vfNotes').value.trim(), status:vendorStatusForm
+    };
+    if(vendorEditingId) { record.id=vendorEditingId; } else {
+      if(vendors.find(v=>v.name.toLowerCase()===name.toLowerCase())){toast('Vendor already exists.','err');return;}
+    }
+    const { error } = await DB.saveVendor(record);
+    if(error){toast('Save failed: '+error.message,'err');return;}
+    vendors = await DB.getVendors();
+    toast(vendorEditingId ? 'Vendor updated.' : 'Vendor added.');
+    vendorEditingId ? cancelVendorEdit() : clearVendorForm();
+    renderAllVendors(); refreshUserVendorDropdown();
+  }
+
+  function clearVendorForm() {
+    ['vfName','vfCode','vfContact','vfEmail','vfPhone','vfNotes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('vfCategory').value='Electrical'; vSelectStatus('active');
+  }
+
+  function editVendor(id) {
+    const v=vendors.find(x=>x.id===id);if(!v)return;
+    vendorEditingId=id;
+    document.getElementById('vfName').value=v.name; document.getElementById('vfCode').value=v.code||'';
+    document.getElementById('vfCategory').value=v.category||'Electrical'; document.getElementById('vfContact').value=v.contact||'';
+    document.getElementById('vfEmail').value=v.email||''; document.getElementById('vfPhone').value=v.phone||'';
+    document.getElementById('vfNotes').value=v.notes||'';
+    vSelectStatus(v.status||'active');
+    document.getElementById('vendorFormTitle').textContent='✎ Editing: '+v.name;
+    document.getElementById('vendorSubmitBtn').textContent='Save Changes';
+    document.getElementById('vendorCancelBtn').style.display='';
+    const u=vendorUsageCount(v.name);
+    document.getElementById('vendorUsageSection').style.display='';
+    document.getElementById('vendorUsageList').innerHTML = u.visits+u.invoices===0
+      ? '<div style="color:var(--muted);font-size:0.81rem">Not referenced in any records.</div>'
+      : `<div class="usage-row"><span>Field Work visits</span><span class="chip chip-purple">${u.visits}</span></div><div class="usage-row"><span>Invoices</span><span class="chip chip-purple">${u.invoices}</span></div>`;
+    document.getElementById('vendorFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
+    renderVendors(); document.getElementById('vfName').focus();
+  }
+
+  function cancelVendorEdit() {
+    vendorEditingId=null; clearVendorForm();
+    document.getElementById('vendorFormTitle').textContent='+ Add Vendor';
+    document.getElementById('vendorSubmitBtn').textContent='Add Vendor';
+    document.getElementById('vendorCancelBtn').style.display='none';
+    document.getElementById('vendorUsageSection').style.display='none';
+    renderVendors();
+  }
+
+  async function toggleVendorStatus(id) {
+    const v=vendors.find(x=>x.id===id);if(!v)return;
+    v.status=v.status==='active'?'inactive':'active';
+    await DB.saveVendor(v);
+    vendors = await DB.getVendors();
+    renderAllVendors(); toast(`${v.name} set to ${v.status}.`);
+  }
+
+  function deleteVendor(id) {
+    const v=vendors.find(x=>x.id===id);if(!v)return;
+    const u=vendorUsageCount(v.name);
+    confirmDel(id,'Vendor',v.name,
+      u.visits+u.invoices>0
+        ? `"${v.name}" is used in ${u.visits} visit(s) and ${u.invoices} invoice(s). It will be removed from dropdowns but records are kept.`
+        : `"${v.name}" has no linked records. It will be permanently removed.`,
+      async (did)=>{ await DB.deleteVendor(did); vendors=await DB.getVendors(); renderAllVendors(); refreshUserVendorDropdown(); toast('Vendor deleted.'); if(vendorEditingId===did) cancelVendorEdit(); }
+    );
+  }
+
+  function setVendorFilter(f,btn) {
+    vendorFilter=f;
+    document.querySelectorAll('#tab-vendors .filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); renderVendors();
+  }
+
+  function renderAllVendors() {
+    document.getElementById('v-stTotal').textContent    = vendors.length;
+    document.getElementById('v-stActive').textContent   = vendors.filter(v=>v.status==='active').length;
+    document.getElementById('v-stInactive').textContent = vendors.filter(v=>v.status==='inactive').length;
+    document.getElementById('v-stVisits').textContent   = vendors.filter(v=>vendorUsageCount(v.name).visits>0).length;
+    document.getElementById('v-stInvoices').textContent = vendors.filter(v=>vendorUsageCount(v.name).invoices>0).length;
+    updateTabCounts(); renderVendors();
+  }
+
+  function renderVendors() {
+    const q=document.getElementById('vendorSearch').value.toLowerCase();
+    const filtered=vendors.filter(v=>{
+      const mf=vendorFilter==='all'||v.status===vendorFilter;
+      const ms=!q||[v.name,v.code,v.category,v.contact,v.email].some(f=>(f||'').toLowerCase().includes(q));
+      return mf&&ms;
+    });
+    const el=document.getElementById('vendorList');
+    if(!filtered.length){el.innerHTML='<div class="empty">No vendors found.</div>';return;}
+    el.innerHTML=filtered.map(v=>{
+      const u=vendorUsageCount(v.name);
+      const catColor={Electrical:'chip-yellow',Plumbing:'chip-blue','HVAC':'chip-blue',Security:'chip-orange',Cleaning:'chip-green','IT / SaaS':'chip-purple',Landscaping:'chip-green',Civil:'chip-orange',Other:'chip-blue'}[v.category]||'chip-blue';
+      return `<div class="rec-card ${v.status==='inactive'?'inactive':''} ${v.id===vendorEditingId?'selected':''}" onclick="editVendor('${v.id}')">
+        <div class="rec-icon ${v.status==='active'?'ic-active':'ic-inactive'}">${vendorIcons[v.category]||'🏭'}</div>
+        <div class="rec-info">
+          <div class="rec-name">${esc(v.name)}${v.code?` <span style="font-size:0.7rem;color:var(--muted)">[${esc(v.code)}]</span>`:''}</div>
+          <div class="rec-meta">
+            <span>${esc(v.category||'')}</span>
+            ${v.contact?`<span>👤 ${esc(v.contact)}</span>`:''}
+            ${v.email?`<span>✉ ${esc(v.email)}</span>`:''}
+            ${v.phone?`<span>📞 ${esc(v.phone)}</span>`:''}
+          </div>
+        </div>
+        <div class="rec-badges">
+          <span class="badge ${v.status==='active'?'b-active':'b-inactive'}">${v.status}</span>
+          <span class="chip ${catColor}">${esc(v.category||'')}</span>
+          ${u.visits+u.invoices>0?`<span class="chip chip-purple">Used ${u.visits+u.invoices}×</span>`:''}
+          <div class="row-acts" onclick="event.stopPropagation()">
+            <button class="act toggle-act" onclick="toggleVendorStatus('${v.id}')">${v.status==='active'?'Deactivate':'Activate'}</button>
+            <button class="act del" onclick="deleteVendor('${v.id}')">✕</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // INVOICES (summary view)
+  // ══════════════════════════════════════════════════════════
+  function renderInvoiceTab() {
+    const invs = _cachedInvoices;
+    const total    = invs.length;
+    const approved = invs.filter(i=>i.status==='approved').length;
+    const pending  = invs.filter(i=>i.status==='submitted'||i.status==='draft').length;
+    const paid     = invs.filter(i=>i.status==='paid').length;
+    const now = new Date().toISOString().split('T')[0];
+    const overdue  = invs.filter(i=>i.status!=='paid'&&i.dueDate&&i.dueDate<now).length;
+    const total_amt = invs.reduce((s,i)=>s+(i.amount||0),0);
+    document.getElementById('i-stTotal').textContent    = total;
+    document.getElementById('i-stApproved').textContent = approved;
+    document.getElementById('i-stPending').textContent  = pending;
+    document.getElementById('i-stPaid').textContent     = paid;
+    document.getElementById('i-stOverdue').textContent  = overdue;
+    document.getElementById('i-stAmount').textContent   = fmt(total_amt);
+    document.getElementById('tc-invoices').textContent  = total;
+
+    // By vendor
+    const byVendor = {};
+    invs.forEach(i=>{ if(!byVendor[i.vendor]) byVendor[i.vendor]={count:0,total:0,paid:0,pending:0}; byVendor[i.vendor].count++; byVendor[i.vendor].total+=i.amount||0; if(i.status==='paid') byVendor[i.vendor].paid++; if(i.status==='submitted'||i.status==='draft') byVendor[i.vendor].pending++; });
+    const entries = Object.entries(byVendor).sort((a,b)=>b[1].total-a[1].total);
+    const el = document.getElementById('invVendorSummary');
+    if(!entries.length){el.innerHTML='<div class="empty">No invoices yet. <a href="invoices.html" style="color:var(--accent2)">Go to Invoices →</a></div>';return;}
+    el.innerHTML=entries.map(([vendor,d])=>`
+      <div class="inv-vendor-row">
+        <div>
+          <div class="ivr-name">${esc(vendor)}</div>
+          <div class="ivr-meta">${d.count} invoice(s) · ${d.paid} paid · ${d.pending} pending</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:var(--accent2)">${fmt(d.total)}</div>
+          <div style="font-size:0.75rem;color:var(--muted)">total invoiced</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // USERS
+  // ══════════════════════════════════════════════════════════
+  let users = [];
+  let userEditingId = null, userStatusForm = 'active', userFilter = 'all';
+  const roleColors = {Admin:'role-admin',Reviewer:'role-reviewer','Field Staff':'role-field',Viewer:'role-viewer'};
+  const roleIcons  = {Admin:'🔑',Reviewer:'👁',  'Field Staff':'🔧',Viewer:'👤'};
+
+  // ── DEPARTMENTS ──────────────────────────────────────────
+  const DEFAULT_DEPTS = ['IT','Facilities','Admin','HR','Operations','Finance','Security','Procurement'];
+  let departments = JSON.parse(localStorage.getItem('tf_departments') || 'null') || DEFAULT_DEPTS;
+
+  function _populateDeptDropdowns() {
+    // User form dept select
+    const sel = document.getElementById('ufDept');
+    if (sel) {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— None —</option>' + departments.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+      if (cur) sel.value = cur;
+    }
+    // User dept filter select
+    const fsel = document.getElementById('userDeptFilter');
+    if (fsel) {
+      fsel.innerHTML = '<option value="">All Depts</option>' + departments.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+    }
+  }
+
+  // seed runs once from async init() below if empty
+
+  function mkUser(name,role,email,phone,vendor,sites,status,department) {
+    return {id:uid(),name,role,email,phone,vendor,sites,status,department:department||'',created:today()};
+  }
+  async function saveUsers() { /* no-op: saves happen per-record via DB.saveUser() */ }
+
+  function refreshUserVendorDropdown() {
+    const sel = document.getElementById('ufVendor');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— None —</option>' + vendors.filter(v=>v.status==='active').map(v=>`<option value="${esc(v.name)}"${v.name===cur?' selected':''}>${esc(v.name)}</option>`).join('');
+    _populateDeptDropdowns();
+  }
+
+  function uSelectStatus(s) {
+    userStatusForm=s;
+    document.getElementById('uToggleActive').className   = 'status-opt'+(s==='active'  ?' sel-active':'');
+    document.getElementById('uToggleInactive').className = 'status-opt'+(s==='inactive'?' sel-inactive':'');
+  }
+
+  async function submitUserForm() {
+    const name=document.getElementById('ufName').value.trim();
+    if(!name){document.getElementById('ufName').focus();toast('Name required.','err');return;}
+    const record={name,role:document.getElementById('ufRole').value,department:document.getElementById('ufDept').value,email:document.getElementById('ufEmail').value.trim(),phone:document.getElementById('ufPhone').value.trim(),assigned_vendor:document.getElementById('ufVendor').value,assigned_sites:document.getElementById('ufSites').value.trim().split(',').map(s=>s.trim()).filter(Boolean),notes:document.getElementById('ufNotes').value.trim(),status:userStatusForm};
+    if(userEditingId){record.id=userEditingId;}
+    const { error } = await DB.saveUser(record);
+    if(error){toast('Save failed: '+error.message,'err');return;}
+    users = await DB.getUsers();
+    toast(userEditingId ? 'User updated.' : 'User added.');
+    userEditingId ? cancelUserEdit() : clearUserForm();
+    renderAllUsers();
+  }
+
+  function clearUserForm() {
+    ['ufName','ufEmail','ufPhone','ufSites','ufNotes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ufRole').value='Admin'; document.getElementById('ufDept').value=''; document.getElementById('ufVendor').value=''; uSelectStatus('active');
+  }
+
+  function editUser(id) {
+    const u=users.find(x=>x.id===id);if(!u)return;
+    userEditingId=id;
+    document.getElementById('ufName').value=u.name; document.getElementById('ufRole').value=u.role||'Admin';
+    document.getElementById('ufDept').value=u.department||'';
+    document.getElementById('ufEmail').value=u.email||''; document.getElementById('ufPhone').value=u.phone||'';
+    document.getElementById('ufVendor').value=u.assigned_vendor||''; document.getElementById('ufSites').value=(u.assigned_sites||[]).join(', ');
+    document.getElementById('ufNotes').value=u.notes||'';
+    uSelectStatus(u.status||'active');
+    document.getElementById('userFormTitle').textContent='✎ Editing: '+u.name;
+    document.getElementById('userSubmitBtn').textContent='Save Changes';
+    document.getElementById('userCancelBtn').style.display='';
+    document.getElementById('userFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
+    renderUsers(); document.getElementById('ufName').focus();
+  }
+
+  function cancelUserEdit() {
+    userEditingId=null; clearUserForm();
+    document.getElementById('userFormTitle').textContent='+ Add User';
+    document.getElementById('userSubmitBtn').textContent='Add User';
+    document.getElementById('userCancelBtn').style.display='none';
+    renderUsers();
+  }
+
+  async function toggleUserStatus(id) {
+    const u=users.find(x=>x.id===id);if(!u)return;
+    u.status=u.status==='active'?'inactive':'active';
+    await DB.saveUser(u);
+    users = await DB.getUsers();
+    renderAllUsers(); toast(`${u.name} set to ${u.status}.`);
+  }
+
+  function deleteUser(id) {
+    const u=users.find(x=>x.id===id);if(!u)return;
+    confirmDel(id,'User',u.name,`"${u.name}" will be permanently removed.`,
+      async (did)=>{ await DB.deleteUser(did); users=await DB.getUsers(); renderAllUsers(); toast('User deleted.'); if(userEditingId===did) cancelUserEdit(); }
+    );
+  }
+
+  function setUserFilter(f,btn) {
+    userFilter=f;
+    document.querySelectorAll('#tab-users .filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); renderUsers();
+  }
+
+  // ── SESSION SWITCHER (localStorage mode only) ─────────────
+  function _renderSessionBanner() {
+    // Only show in local (non-Supabase) mode
+    if (typeof DB !== 'undefined' && DB.isConfigured()) return;
+    const banner = document.getElementById('sessionBanner');
+    if (!banner) return;
+    banner.style.display = 'flex';
+    const cu = window.CURRENT_USER || {};
+    const label = `${cu.name || cu.email || 'Unknown'} — ${cu.role || ''}${cu.department ? ' · ' + cu.department : ''}`;
+    document.getElementById('sessionLabel').textContent = label;
+    const pick = document.getElementById('sessionUserPick');
+    pick.innerHTML = users.filter(u=>u.status==='active').map(u=>`<option value="${u.id}"${(u.email===cu.email||u.name===cu.name)?'selected':''}>${esc(u.name)} (${u.role}${u.department?' · '+u.department:''})</option>`).join('');
+  }
+
+  function switchSessionUser() {
+    const id = document.getElementById('sessionUserPick').value;
+    const u = users.find(x=>x.id===id);
+    if (!u) return;
+    const cu = {name:u.name,role:u.role,email:u.email||'',department:u.department||'',status:u.status};
+    localStorage.setItem('tf_current_user', JSON.stringify(cu));
+    window.CURRENT_USER = cu;
+    _renderSessionBanner();
+    toast(`Session switched to ${u.name} (${u.role}${u.department?' · '+u.department:''}). Reload other pages to apply.`);
+  }
+
+  function renderAllUsers() {
+    document.getElementById('u-stTotal').textContent    = users.length;
+    document.getElementById('u-stActive').textContent   = users.filter(u=>u.status==='active').length;
+    document.getElementById('u-stInactive').textContent = users.filter(u=>u.status==='inactive').length;
+    document.getElementById('u-stAdmins').textContent   = users.filter(u=>u.role==='Admin').length;
+    _populateDeptDropdowns();
+    _renderSessionBanner();
+    updateTabCounts(); renderUsers();
+  }
+
+  function renderUsers() {
+    const q    = document.getElementById('userSearch').value.toLowerCase();
+    const deptF= (document.getElementById('userDeptFilter')||{}).value || '';
+    const filtered=users.filter(u=>{
+      const mf=userFilter==='all'||(userFilter==='active'||userFilter==='inactive'?u.status===userFilter:u.role===userFilter);
+      const df=!deptF||(u.department||'')===deptF;
+      const ms=!q||[u.name,u.email,u.role,u.department,u.assigned_vendor,...(u.assigned_sites||[])].some(f=>(f||'').toLowerCase().includes(q));
+      return mf&&df&&ms;
+    });
+    const el=document.getElementById('userList');
+    if(!filtered.length){el.innerHTML='<div class="empty">No users found.</div>';return;}
+    el.innerHTML=filtered.map(u=>`
+      <div class="rec-card ${u.status==='inactive'?'inactive':''} ${u.id===userEditingId?'selected':''}" onclick="editUser('${u.id}')">
+        <div class="rec-icon ${u.status==='active'?'ic-active':'ic-inactive'}">${roleIcons[u.role]||'👤'}</div>
+        <div class="rec-info">
+          <div class="rec-name">${esc(u.name)}</div>
+          <div class="rec-meta">
+            ${u.department?`<span style="color:var(--accent2)">🏢 ${esc(u.department)}</span>`:''}
+            ${u.email?`<span>✉ ${esc(u.email)}</span>`:''}
+            ${u.phone?`<span>📞 ${esc(u.phone)}</span>`:''}
+            ${u.assigned_vendor?`<span>🏭 ${esc(u.assigned_vendor)}</span>`:''}
+            ${u.assigned_sites&&u.assigned_sites.length?`<span>📍 ${esc(u.assigned_sites.join(', '))}</span>`:''}
+          </div>
+        </div>
+        <div class="rec-badges">
+          <span class="badge ${u.status==='active'?'b-active':'b-inactive'}">${u.status}</span>
+          <span class="chip ${roleColors[u.role]||'chip-blue'}">${esc(u.role)}</span>
+          <div class="row-acts" onclick="event.stopPropagation()">
+            <button class="act toggle-act" onclick="toggleUserStatus('${u.id}')">${u.status==='active'?'Deactivate':'Activate'}</button>
+            <button class="act del" onclick="deleteUser('${u.id}')">✕</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // ROLES
+  // ══════════════════════════════════════════════════════════
+  const RESOURCES = [
+    { key:'tasks',    label:'Tasks',          page:'Dashboard',  icon:'📋' },
+    { key:'visits',   label:'Field Visits',   page:'Field Work', icon:'🔧' },
+    { key:'invoices', label:'Invoices',        page:'Invoices',   icon:'🧾', hasApprove:true },
+    { key:'sites',    label:'Sites',           page:'Admin',      icon:'🏢' },
+    { key:'vendors',  label:'Vendors',         page:'Admin',      icon:'🏭' },
+    { key:'users',    label:'Users',           page:'Admin',      icon:'👤' },
+    { key:'roles',    label:'Roles',           page:'Admin',      icon:'🔐' },
+    { key:'workflow', label:'Workflow',        page:'Workflow',   icon:'🔀' },
+  ];
+  const OPS = ['view','create','edit','delete','approve'];
+  const COLORS = ['#6c63ff','#22c55e','#f59e0b','#ef4444','#3b82f6','#f97316','#a78bfa','#64748b'];
+
+  let roles = [];
+  let roleEditingId = null, roleColor = '#6c63ff';
+
+  // seed runs once from async init() below if empty
+
+  const _defaultRoles = () => {
+    const allPerms = () => { const p={}; RESOURCES.forEach(r=>{p[r.key]={view:true,create:true,edit:true,delete:true,approve:true};}); return p; };
+    const readPerms = () => { const p={}; RESOURCES.forEach(r=>{p[r.key]={view:true,create:false,edit:false,delete:false,approve:false};}); return p; };
+    const fieldPerms = () => { const p={}; RESOURCES.forEach(r=>{p[r.key]={view:false,create:false,edit:false,delete:false,approve:false};}); p.tasks={view:true,create:true,edit:true,delete:false,approve:false}; p.visits={view:true,create:true,edit:true,delete:false,approve:false}; p.invoices={view:true,create:false,edit:false,delete:false,approve:false}; return p; };
+    const reviewPerms = () => { const p={}; RESOURCES.forEach(r=>{p[r.key]={view:true,create:false,edit:false,delete:false,approve:false};}); p.invoices={view:true,create:false,edit:false,delete:false,approve:true}; return p; };
+    return [
+      {name:'Admin',       description:'Full access to all features and settings.',   color:'#ef4444', permissions:allPerms()},
+      {name:'Reviewer',    description:'Can view everything and approve invoices.',    color:'#f59e0b', permissions:reviewPerms()},
+      {name:'Field Staff', description:'Can log and update tasks and field visits.',   color:'#3b82f6', permissions:fieldPerms()},
+      {name:'Viewer',      description:'Read-only access to all pages.',               color:'#64748b', permissions:readPerms()},
+    ];
+  };
+
+  async function saveRoles() { /* no-op: saves happen per-record via DB.saveRole() */ }
+
+  // Build color swatches
+  function buildSwatches() {
+    document.getElementById('colorSwatches').innerHTML = COLORS.map(c=>
+      `<div class="swatch ${c===roleColor?'selected':''}" style="background:${c}" title="${c}" onclick="selectColor('${c}')"></div>`
+    ).join('');
+  }
+  function selectColor(c) { roleColor=c; document.getElementById('rfColor').value=c; buildSwatches(); }
+
+  // Build permission matrix in the form
+  function buildPermMatrix(perms) {
+    perms = perms || {};
+    let html = '';
+    // Select All row
+    html += `<tr class="perm-all-row">
+      <td class="res-td" style="font-size:0.72rem;color:var(--accent2)">Select All</td>
+      ${OPS.map(op=>`<td class="perm-cb"><input type="checkbox" id="pall-${op}" onchange="toggleAllPerms('${op}',this.checked)" /></td>`).join('')}
+    </tr>`;
+    // Group by page
+    const pages = [...new Set(RESOURCES.map(r=>r.page))];
+    pages.forEach(page => {
+      const pageResources = RESOURCES.filter(r=>r.page===page);
+      html += `<tr class="perm-section-hdr"><td colspan="6">${page}</td></tr>`;
+      pageResources.forEach(r => {
+        const p = perms[r.key] || {};
+        html += `<tr>
+          <td class="res-td">${r.icon} ${r.label}</td>
+          ${OPS.map(op => {
+            const disabled = !r.hasApprove && op==='approve' ? 'disabled style="opacity:0.2"' : '';
+            const checked  = p[op] ? 'checked' : '';
+            return `<td class="perm-cb"><input type="checkbox" ${checked} ${disabled} id="p-${r.key}-${op}" onchange="syncSelectAll()" /></td>`;
+          }).join('')}
+        </tr>`;
+      });
+    });
+    document.getElementById('permMatrixBody').innerHTML = html;
+    syncSelectAll();
+  }
+
+  function toggleAllPerms(op, checked) {
+    RESOURCES.forEach(r => {
+      const el = document.getElementById(`p-${r.key}-${op}`);
+      if (el && !el.disabled) el.checked = checked;
+    });
+  }
+
+  function syncSelectAll() {
+    OPS.forEach(op => {
+      const allEl = document.getElementById(`pall-${op}`);
+      if (!allEl) return;
+      const all = RESOURCES.filter(r => !(!r.hasApprove && op==='approve'));
+      allEl.checked = all.every(r => { const el=document.getElementById(`p-${r.key}-${op}`); return el&&el.checked; });
+    });
+  }
+
+  function readPermMatrix() {
+    const perms = {};
+    RESOURCES.forEach(r => {
+      perms[r.key] = {};
+      OPS.forEach(op => {
+        const el = document.getElementById(`p-${r.key}-${op}`);
+        perms[r.key][op] = el ? el.checked : false;
+      });
+    });
+    return perms;
+  }
+
+  // ── CRUD ─────────────────────────────────────────────────
+  async function submitRoleForm() {
+    const name = document.getElementById('rfName').value.trim();
+    if (!name) { document.getElementById('rfName').focus(); toast('Role name required.','err'); return; }
+    const permissions = readPermMatrix();
+    const record = { name, description:document.getElementById('rfDesc').value.trim(), color:roleColor, permissions };
+    if (roleEditingId) { record.id=roleEditingId; } else {
+      if (roles.find(r=>r.name.toLowerCase()===name.toLowerCase())) { toast('Role already exists.','err'); return; }
+    }
+    const { error } = await DB.saveRole(record);
+    if(error){toast('Save failed: '+error.message,'err');return;}
+    roles = await DB.getRoles();
+    toast(roleEditingId ? 'Role updated.' : 'Role created.');
+    if(roleEditingId){ cancelRoleEdit(); } else { clearRoleForm(); }
+    renderAllRoles(); refreshUserRoleDropdown();
+  }
+
+  function clearRoleForm() {
+    document.getElementById('rfName').value=''; document.getElementById('rfDesc').value='';
+    selectColor('#6c63ff'); buildPermMatrix({});
+  }
+
+  function editRole(id) {
+    const r=roles.find(x=>x.id===id); if(!r)return;
+    roleEditingId=id; selectColor(r.color||'#6c63ff');
+    document.getElementById('rfName').value=r.name; document.getElementById('rfDesc').value=r.description||'';
+    buildPermMatrix(r.permissions||{});
+    document.getElementById('roleFormTitle').textContent='✎ Editing: '+r.name;
+    document.getElementById('roleSubmitBtn').textContent='Save Changes';
+    document.getElementById('roleCancelBtn').style.display='';
+    document.getElementById('roleFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
+    renderRoles(); document.getElementById('rfName').focus();
+  }
+
+  function cancelRoleEdit() {
+    roleEditingId=null; clearRoleForm();
+    document.getElementById('roleFormTitle').textContent='+ Create Role';
+    document.getElementById('roleSubmitBtn').textContent='Create Role';
+    document.getElementById('roleCancelBtn').style.display='none';
+    renderRoles();
+  }
+
+  function deleteRole(id) {
+    const r=roles.find(x=>x.id===id); if(!r)return;
+    const assigned = users.filter(u=>u.role===r.name).length;
+    confirmDel(id,'Role',r.name,
+      assigned>0 ? `"${r.name}" is assigned to ${assigned} user(s). Deleting it won't remove those users but they'll have no role.` : `"${r.name}" is not assigned to any users.`,
+      async (did)=>{ await DB.deleteRole(did); roles=await DB.getRoles(); renderAllRoles(); refreshUserRoleDropdown(); toast('Role deleted.'); if(roleEditingId===did) cancelRoleEdit(); }
+    );
+  }
+
+  function refreshUserRoleDropdown() {
+    const sel=document.getElementById('ufRole');
+    const cur=sel.value;
+    sel.innerHTML=roles.map(r=>`<option value="${esc(r.name)}"${r.name===cur?' selected':''}>${esc(r.name)}</option>`).join('');
+    if(!sel.value&&roles.length) sel.value=roles[0].name;
+  }
+
+  // ── RENDER ────────────────────────────────────────────────
+  function renderAllRoles() {
+    document.getElementById('r-stTotal').textContent = roles.length;
+    const fullCount = roles.filter(r=>RESOURCES.every(res=>r.permissions&&r.permissions[res.key]&&r.permissions[res.key].create&&r.permissions[res.key].delete)).length;
+    const readCount = roles.filter(r=>RESOURCES.every(res=>r.permissions&&r.permissions[res.key]&&r.permissions[res.key].view&&!r.permissions[res.key].create&&!r.permissions[res.key].edit&&!r.permissions[res.key].delete)).length;
+    const assignedCount = [...new Set(users.map(u=>u.role).filter(Boolean))].length;
+    document.getElementById('r-stFull').textContent     = fullCount;
+    document.getElementById('r-stReadOnly').textContent = readCount;
+    document.getElementById('r-stAssigned').textContent = assignedCount;
+    document.getElementById('tc-roles').textContent     = roles.length;
+    renderRoles();
+  }
+
+  function renderRoles() {
+    const q=document.getElementById('roleSearch').value.toLowerCase();
+    const filtered=roles.filter(r=>!q||[r.name,r.desc].some(f=>(f||'').toLowerCase().includes(q)));
+    const el=document.getElementById('roleList');
+    if(!filtered.length){el.innerHTML='<div class="empty">No roles found.</div>';return;}
+    el.innerHTML=filtered.map(r=>{
+      const assignedUsers=users.filter(u=>u.role===r.name);
+      // Mini permission summary
+      const mini

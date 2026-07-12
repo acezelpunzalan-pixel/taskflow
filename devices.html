@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Device Inventory — TaskFlow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #222535; --border: #2e3148;
+    --accent: #6c63ff; --accent2: #a78bfa; --text: #e2e8f0; --muted: #8892a4;
+    --green: #22c55e; --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6; --orange: #f97316;
+    --r: 10px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+  main { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+  h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+  .page-sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 24px; }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; }
+  .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+  .stat-val { font-size: 1.7rem; font-weight: 700; }
+  .stat-val.green { color: var(--green); }
+  .stat-val.yellow { color: var(--yellow); }
+  .stat-val.red { color: var(--red); }
+  .stat-val.blue { color: var(--blue); }
+  .stat-val.orange { color: var(--orange); }
+  .stat-val.muted { color: var(--muted); }
+
+  /* WARRANTY ALERT BAR */
+  .warn-bar { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: var(--r); padding: 12px 18px; margin-bottom: 22px; font-size: 0.83rem; color: var(--yellow); display: none; }
+  .warn-bar.show { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .warn-bar strong { font-weight: 700; }
+
+  /* LAYOUT */
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  /* FORM PANEL */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; position: sticky; top: 80px; }
+  .panel-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .panel-title .icon { font-size: 1.1rem; }
+  .form-group { margin-bottom: 12px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; }
+  input, select, textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 8px 10px; font-size: 0.85rem; outline: none; transition: border-color 0.15s; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 60px; }
+  select option { background: var(--surface2); }
+  .form-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .btn { padding: 8px 16px; border-radius: 7px; font-size: 0.83rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; font-family: inherit; }
+  .btn-primary { background: var(--accent); color: #fff; flex: 1; }
+  .btn-primary:hover { background: #7c74ff; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--accent2); color: var(--accent2); }
+  .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+  .btn-danger { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+  .btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+  /* CONTENT AREA */
+  .content-area { display: flex; flex-direction: column; gap: 16px; }
+
+  /* TOOLBAR */
+  .toolbar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .toolbar input[type=search] { flex: 1; min-width: 160px; }
+  .toolbar select { width: auto; min-width: 130px; }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+  .table-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .table-header h3 { font-size: 0.9rem; font-weight: 700; }
+  .count-badge { font-size: 0.72rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 99px; padding: 2px 9px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  thead th { padding: 10px 14px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+  thead th:hover { color: var(--accent2); }
+  thead th.sort-asc::after { content: ' ▲'; font-size: 0.6rem; }
+  thead th.sort-desc::after { content: ' ▼'; font-size: 0.6rem; }
+  tbody tr { border-bottom: 1px solid rgba(46,49,72,0.5); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(108,99,255,0.04); }
+  td { padding: 10px 14px; vertical-align: middle; }
+  td.muted { color: var(--muted); }
+  .empty-row td { text-align: center; color: var(--muted); padding: 40px; font-size: 0.85rem; }
+
+  /* BADGES */
+  .badge { display: inline-block; font-size: 0.68rem; padding: 2px 9px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
+  .badge-active     { background: rgba(34,197,94,0.15);  color: #4ade80; }
+  .badge-storage    { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .badge-repair     { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .badge-decomm     { background: rgba(239,68,68,0.12);  color: #f87171; }
+  .badge-missing    { background: rgba(249,115,22,0.15); color: #fb923c; }
+  .type-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); white-space: nowrap; }
+  .warn-expire { color: var(--yellow) !important; font-weight: 600; }
+  .expired { color: var(--red) !important; font-weight: 600; }
+  .row-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.15s; }
+  tbody tr:hover .row-actions { opacity: 1; }
+
+  /* MODAL */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; padding: 26px; position: relative; }
+  .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 4px 8px; border-radius: 6px; }
+  .modal-close:hover { background: var(--surface2); color: var(--text); }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-grid .span2 { grid-column: span 2; }
+  @media (max-width: 500px) { .modal-grid { grid-template-columns: 1fr; } .modal-grid .span2 { grid-column: span 1; } }
+
+  /* DEVICE DETAIL VIEW */
+  .detail-section { background: var(--surface2); border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+  .detail-section h4 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 10px; font-weight: 700; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  .detail-item label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; display: block; margin-bottom: 2px; }
+  .detail-item span { font-size: 0.85rem; font-weight: 500; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 0.85rem; z-index: 999; opacity: 0; transition: opacity 0.25s; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  #toast.show { opacity: 1; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error   { border-color: var(--red);   color: var(--red);   }  /* LIGHT THEME */
+  html.light { --bg: #f0f2f8; --surface: #ffffff; --surface2: #e8eaf4; --border: #d0d4e8; --text: #1a1d2e; --muted: #64748b; }
+
+  /* SIDEBAR NAV */
+  body { display: flex; }
+  .sidebar { width: 196px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; padding: 20px 12px 16px; }
+  .logo { font-size: 1.15rem; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; padding: 4px 8px 18px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .sidebar-nav a { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 0.84rem; font-weight: 500; transition: all 0.15s; white-space: nowrap; }
+  .sidebar-nav a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-nav a.active { background: rgba(108,99,255,0.14); color: var(--accent2); font-weight: 600; }
+  .nav-group-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--border); padding: 10px 10px 3px; margin-top: 2px; pointer-events: none; }
+  .theme-toggle { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 0.81rem; color: var(--muted); transition: all 0.15s; font-family: inherit; line-height: 1; width: 100%; text-align: left; margin-top: auto; }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent2); background: rgba(108,99,255,0.08); }
+  /* MAIN WRAP */
+  .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
+</style>
+<script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">Task<span>Flow</span></div>
+  <nav class="sidebar-nav">
+    <a href="index.html">📋 Dashboard</a>
+    <div class="nav-group-label">Operations</div>
+    <a href="fieldwork.html">🔧 Field Work</a>
+    <a href="invoices.html">🧾 Invoices</a>
+    <a href="projects.html">📁 Projects</a>
+    <div class="nav-group-label">Budget</div>
+    <a href="capex.html">💰 CapEx</a>
+    <a href="opex.html">📊 OpEx</a>
+    <div class="nav-group-label">Assets</div>
+    <a href="devices.html" class="active">💻 Devices</a>
+    <a href="branches.html">🏢 Branches</a>
+    <div class="nav-group-label">System</div>
+    <a href="workflow.html">🔀 Workflow</a>
+    <a href="admin.html">⚙️ Admin</a>
+  </nav>
+  <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">☀️ Light</button>
+</aside>
+
+<div class="main-wrap">
+
+<main>
+  <h1>💻 Device Inventory</h1>
+  <p class="page-sub">Track all IT hardware assets — assignments, warranty, and status.</p>
+
+  <!-- STATS -->
+  <div class="stats" id="statsBar"></div>
+
+  <!-- WARRANTY ALERT -->
+  <div class="warn-bar" id="warnBar">
+    ⚠️ <span id="warnText"></span>
+  </div>
+
+  <div class="layout">
+    <!-- ADD FORM -->
+    <div class="panel">
+      <div class="panel-title"><span class="icon">➕</span> <span id="formTitle">Add Device</span></div>
+
+      <div class="form-group">
+        <label>Device Name / Model *</label>
+        <input type="text" id="fName" placeholder="e.g. MacBook Pro 14" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Type *</label>
+          <select id="fType">
+            <option value="">Select type</option>
+            <option>Laptop</option>
+            <option>Desktop</option>
+            <option>Monitor</option>
+            <option>Printer</option>
+            <option>Network Switch</option>
+            <option>Router</option>
+            <option>Access Point</option>
+            <option>Server</option>
+            <option>NAS / Storage</option>
+            <option>IP Phone</option>
+            <option>Mobile / Tablet</option>
+            <option>UPS</option>
+            <option>Peripheral</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Brand</label>
+          <input type="text" id="fBrand" placeholder="Apple, Dell, HP…" list="brandList">
+          <datalist id="brandList">
+            <option value="Apple"><option value="Dell"><option value="HP">
+            <option value="Lenovo"><option value="Cisco"><option value="Ubiquiti">
+            <option value="Samsung"><option value="LG"><option value="Asus">
+            <option value="Acer"><option value="Microsoft"><option value="Synology">
+          </datalist>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Serial Number</label>
+          <input type="text" id="fSerial" placeholder="SN-…" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Asset Tag</label>
+          <input type="text" id="fAsset" placeholder="IT-0001" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>OS / Firmware</label>
+          <input type="text" id="fOS" placeholder="macOS 14, Windows 11…">
+        </div>
+        <div class="form-group">
+          <label>IP Address</label>
+          <input type="text" id="fIP" placeholder="192.168.1.x">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Purchase Date</label>
+          <input type="date" id="fPurchased">
+        </div>
+        <div class="form-group">
+          <label>Warranty Expiry</label>
+          <input type="date" id="fWarranty">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Assigned To</label>
+        <input type="text" id="fAssignedTo" placeholder="User name" list="userNameList" autocomplete="off">
+        <datalist id="userNameList"></datalist>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Assigned Site</label>
+          <input type="text" id="fSite" placeholder="Site / location" list="siteNameList" autocomplete="off">
+          <datalist id="siteNameList"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Support Vendor</label>
+          <input type="text" id="fVendor" placeholder="Vendor" list="vendorNameList" autocomplete="off">
+          <datalist id="vendorNameList"></datalist>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="fStatus">
+          <option value="Active">Active</option>
+          <option value="In Storage">In Storage</option>
+          <option value="Under Repair">Under Repair</option>
+          <option value="Missing">Missing</option>
+          <option value="Decommissioned">Decommissioned</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="fNotes" placeholder="Additional details…"></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="submitForm()">💾 Save Device</button>
+        <button class="btn btn-ghost" id="cancelBtn" style="display:none" onclick="cancelEdit()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- TABLE AREA -->
+    <div class="content-area">
+      <!-- TOOLBAR -->
+      <div class="toolbar">
+        <input type="search" id="searchBox" placeholder="🔍  Search name, serial, asset tag, user…" oninput="renderTable()">
+        <select id="filterType" onchange="renderTable()">
+          <option value="">All Types</option>
+          <option>Laptop</option>
+          <option>Desktop</option>
+          <option>Monitor</option>
+          <option>Printer</option>
+          <option>Network Switch</option>
+          <option>Router</option>
+          <option>Access Point</option>
+          <option>Server</option>
+          <option>NAS / Storage</option>
+          <option>IP Phone</option>
+          <option>Mobile / Tablet</option>
+          <option>UPS</option>
+          <option>Peripheral</option>
+          <option>Other</option>
+        </select>
+        <select id="filterStatus" onchange="renderTable()">
+          <option value="">All Statuses</option>
+          <option>Active</option>
+          <option>In Storage</option>
+          <option>Under Repair</option>
+          <option>Missing</option>
+          <option>Decommissioned</option>
+        </select>
+        <select id="filterWarranty" onchange="renderTable()">
+          <option value="">All Warranty</option>
+          <option value="expiring">Expiring ≤ 90 days</option>
+          <option value="expired">Expired</option>
+          <option value="valid">Valid</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ CSV</button>
+      </div>
+
+      <!-- TABLE -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Devices</h3>
+          <span class="count-badge" id="tableCount">0 devices</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th onclick="sortBy('name')">Name / Model</th>
+                <th onclick="sortBy('type')">Type</th>
+                <th onclick="sortBy('brand')">Brand</th>
+                <th onclick="sortBy('serial')">Serial / Asset</th>
+                <th onclick="sortBy('assignedTo')">Assigned To</th>
+                <th onclick="sortBy('site')">Site</th>
+                <th onclick="sortBy('warranty')">Warranty</th>
+                <th onclick="sortBy('status')">Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="deviceTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- VIEW / EDIT MODAL -->
+<div class="overlay" id="viewOverlay" onclick="if(event.target===this)closeView()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeView()">✕</button>
+    <div class="modal-title" id="viewTitle">💻 Device Detail</div>
+    <div id="viewBody"></div>
+    <div class="modal-actions" id="viewActions"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────
+const KEY = 'tf_devices';
+let devices = [];
+let sortCol = 'name', sortDir = 1;
+let editingId = null;
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function today() { return new Date().toISOString().slice(0,10); }
+
+function load() {
+  devices = JSON.parse(localStorage.getItem(KEY) || '[]');
+  if (devices.length === 0) seedData();
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(devices)); }
+
+// ── SEED ────────────────────────────────────────────────────────
+function seedData() {
+  const t = today();
+  const yr = new Date().getFullYear();
+  devices = [
+    { id:uid(), name:'MacBook Pro 14 (M3)', type:'Laptop', brand:'Apple', serial:'C02XK1ABCD', asset:'IT-0001', os:'macOS 14 Sonoma', ip:'192.168.1.101', purchased:`${yr-1}-03-15`, warranty:`${yr+1}-03-14`, assignedTo:'Ace Punzalan', site:'Building A', vendor:'Apple Support', status:'Active', notes:'Primary dev machine.' },
+    { id:uid(), name:'Dell OptiPlex 7090', type:'Desktop', brand:'Dell', serial:'7XC2MN3', asset:'IT-0002', os:'Windows 11 Pro', ip:'192.168.1.102', purchased:`${yr-2}-06-01`, warranty:`${yr}-06-01`, assignedTo:'Maria Santos', site:'Building A', vendor:'Dell ProSupport', status:'Active', notes:'' },
+    { id:uid(), name:'HP LaserJet Pro M404n', type:'Printer', brand:'HP', serial:'VNB3K12345', asset:'IT-0003', os:'', ip:'192.168.1.150', purchased:`${yr-3}-01-10`, warranty:`${yr-1}-01-10`, assignedTo:'', site:'Warehouse 1', vendor:'', status:'Active', notes:'Shared floor printer.' },
+    { id:uid(), name:'Cisco SG350-28', type:'Network Switch', brand:'Cisco', serial:'FOC2310X4AB', asset:'IT-0004', os:'IOS 2.5.7', ip:'192.168.1.2', purchased:`${yr-1}-08-20`, warranty:`${yr+4}-08-19`, assignedTo:'', site:'Building A', vendor:'Cisco SmartNet', status:'Active', notes:'Core network switch, rack 1.' },
+    { id:uid(), name:'Dell UltraSharp U2722D', type:'Monitor', brand:'Dell', serial:'CN0AB12C', asset:'IT-0005', os:'', ip:'', purchased:`${yr-1}-03-15`, warranty:`${yr+2}-03-14`, assignedTo:'Ace Punzalan', site:'Building A', vendor:'', status:'Active', notes:'27" 4K, paired with IT-0001.' },
+    { id:uid(), name:'Ubiquiti UniFi AP AC Pro', type:'Access Point', brand:'Ubiquiti', serial:'802F20AABB', asset:'IT-0006', os:'UniFi 6.5', ip:'192.168.1.5', purchased:`${yr-2}-11-05`, warranty:`${yr}-11-05`, assignedTo:'', site:'Site B', vendor:'', status:'Active', notes:'Ceiling mount, floor 2.' },
+    { id:uid(), name:'Lenovo ThinkPad X1 Carbon', type:'Laptop', brand:'Lenovo', serial:'PF2XAB12', asset:'IT-0007', os:'Windows 11 Pro', ip:'DHCP', purchased:`${yr-1}-07-01`, warranty:`${yr+2}-07-01`, assignedTo:'John Reyes', site:'Building C', vendor:'Lenovo Premier', status:'Under Repair', notes:'Screen hinge issue, sent for repair.' },
+    { id:uid(), name:'Synology DS920+', type:'NAS / Storage', brand:'Synology', serial:'SYN20ABCDEF', asset:'IT-0008', os:'DSM 7.2', ip:'192.168.1.10', purchased:`${yr-2}-04-18`, warranty:`${yr+1}-04-18`, assignedTo:'', site:'Building A', vendor:'', status:'Active', notes:'4-bay NAS, backups + file share.' },
+    { id:uid(), name:'iPhone 15 Pro', type:'Mobile / Tablet', brand:'Apple', serial:'FFMXQ1ABCDE', asset:'IT-0009', os:'iOS 17', ip:'DHCP', purchased:`${yr}-01-15`, warranty:`${yr+1}-01-14`, assignedTo:'Maria Santos', site:'Building A', vendor:'Apple Care', status:'Active', notes:'Company mobile device.' },
+    { id:uid(), name:'HP UPS R1500 INTL', type:'UPS', brand:'HP', serial:'UPS2020XA', asset:'IT-0010', os:'', ip:'', purchased:`${yr-4}-09-10`, warranty:`${yr-1}-09-10`, assignedTo:'', site:'Building A', vendor:'', status:'In Storage', notes:'Replaced — check battery health before reuse.' },
+  ];
+  save();
+}
+
+// ── DATALISTS ────────────────────────────────────────────────────
+function refreshDataLists() {
+  // Users
+  const users = JSON.parse(localStorage.getItem('tf_users') || '[]');
+  document.getElementById('userNameList').innerHTML =
+    users.filter(u=>u.status==='Active').map(u=>`<option value="${esc(u.name)}">`).join('');
+
+  // Sites
+  const sites = JSON.parse(localStorage.getItem('tf_site_names') || '[]');
+  document.getElementById('siteNameList').innerHTML = sites.map(s=>`<option value="${esc(s)}">`).join('');
+
+  // Vendors
+  const vendors = JSON.parse(localStorage.getItem('tf_vendor_names') || '[]');
+  document.getElementById('vendorNameList').innerHTML = vendors.map(v=>`<option value="${esc(v)}">`).join('');
+}
+
+// ── STATS ────────────────────────────────────────────────────────
+function renderStats() {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const d90 = new Date(now); d90.setDate(d90.getDate()+90);
+
+  let active=0, storage=0, repair=0, decomm=0, expiring=0, expired=0;
+  devices.forEach(d => {
+    if (d.status==='Active') active++;
+    else if (d.status==='In Storage') storage++;
+    else if (d.status==='Under Repair') repair++;
+    else if (d.status==='Decommissioned') decomm++;
+    if (d.warranty) {
+      const w = new Date(d.warranty); w.setHours(0,0,0,0);
+      if (w < now) expired++;
+      else if (w <= d90) expiring++;
+    }
+  });
+
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat"><div class="stat-label">Total Devices</div><div class="stat-val">${devices.length}</div></div>
+    <div class="stat"><div class="stat-label">Active</div><div class="stat-val green">${active}</div></div>
+    <div class="stat"><div class="stat-label">In Storage</div><div class="stat-val blue">${storage}</div></div>
+    <div class="stat"><div class="stat-label">Under Repair</div><div class="stat-val yellow">${repair}</div></div>
+    <div class="stat"><div class="stat-label">Decommissioned</div><div class="stat-val muted">${decomm}</div></div>
+    <div class="stat"><div class="stat-label">Warranty Expiring</div><div class="stat-val orange">${expiring}</div></div>
+    <div class="stat"><div class="stat-label">Warranty Expired</div><div class="stat-val red">${expired}</div></div>
+  `;
+
+  // Alert bar
+  const bar = document.getElementById('warnBar');
+  if (expiring > 0 || expired > 0) {
+    bar.classList.add('show');
+    let msg = [];
+    if (expired > 0) msg.push(`<strong>${expired}</strong> device${expired>1?'s':''} with expired warranty`);
+    if (expiring > 0) msg.push(`<strong>${expiring}</strong> expiring within 90 days`);
+    document.getElementById('warnText').innerHTML = msg.join(' · ');
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────
+const TYPE_ICONS = {
+  'Laptop':'💻','Desktop':'🖥️','Monitor':'🖥','Printer':'🖨️',
+  'Network Switch':'🔌','Router':'📡','Access Point':'📶','Server':'🗄️',
+  'NAS / Storage':'💾','IP Phone':'☎️','Mobile / Tablet':'📱',
+  'UPS':'🔋','Peripheral':'🖱️','Other':'📦'
+};
+const STATUS_BADGES = {
+  'Active':'badge-active','In Storage':'badge-storage',
+  'Under Repair':'badge-repair','Missing':'badge-missing','Decommissioned':'badge-decomm'
+};
+
+function warrantyClass(dateStr) {
+  if (!dateStr) return '';
+  const now = new Date(); now.setHours(0,0,0,0);
+  const d90 = new Date(now); d90.setDate(d90.getDate()+90);
+  const w = new Date(dateStr); w.setHours(0,0,0,0);
+  if (w < now) return 'expired';
+  if (w <= d90) return 'warn-expire';
+  return '';
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+  document.querySelectorAll('thead th').forEach(th => th.classList.remove('sort-asc','sort-desc'));
+  const cols = ['name','type','brand','serial','assignedTo','site','warranty','status'];
+  const idx = cols.indexOf(col);
+  if (idx >= 0) {
+    const ths = document.querySelectorAll('thead th');
+    ths[idx]?.classList.add(sortDir===1?'sort-asc':'sort-desc');
+  }
+  renderTable();
+}
+
+function renderTable() {
+  const q       = document.getElementById('searchBox').value.trim().toLowerCase();
+  const fType   = document.getElementById('filterType').value;
+  const fStatus = document.getElementById('filterStatus').value;
+  const fWar    = document.getElementById('filterWarranty').value;
+  const now     = new Date(); now.setHours(0,0,0,0);
+  const d90     = new Date(now); d90.setDate(d90.getDate()+90);
+
+  let rows = devices.filter(d => {
+    if (fType   && d.type   !== fType)   return false;
+    if (fStatus && d.status !== fStatus) return false;
+    if (fWar) {
+      if (!d.warranty) return fWar === 'valid' ? false : false;
+      const w = new Date(d.warranty); w.setHours(0,0,0,0);
+      if (fWar === 'expired')  return w < now;
+      if (fWar === 'expiring') return w >= now && w <= d90;
+      if (fWar === 'valid')    return w > d90;
+    }
+    if (q) {
+      const hay = [d.name, d.serial, d.asset, d.assignedTo, d.site, d.brand, d.ip, d.os].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  rows.sort((a,b) => {
+    const av = (a[sortCol]||'').toLowerCase(), bv = (b[sortCol]||'').toLowerCase();
+    return av < bv ? -sortDir : av > bv ? sortDir : 0;
+  });
+
+  document.getElementById('tableCount').textContent = `${rows.length} device${rows.length!==1?'s':''}`;
+
+  const tbody = document.getElementById('deviceTableBody');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">No devices match the current filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(d => {
+    const icon = TYPE_ICONS[d.type] || '📦';
+    const badgeCls = STATUS_BADGES[d.status] || 'badge-active';
+    const wCls = warrantyClass(d.warranty);
+    const wLabel = d.warranty ? `<span class="${wCls}">${d.warranty}</span>` : '<span class="muted">—</span>';
+    return `<tr>
+      <td>
+        <div style="font-weight:600;font-size:0.84rem">${esc(d.name)}</div>
+        ${d.asset ? `<div style="font-size:0.72rem;color:var(--muted)">${esc(d.asset)}</div>` : ''}
+      </td>
+      <td><span class="type-badge">${icon} ${esc(d.type)}</span></td>
+      <td class="muted">${esc(d.brand)||'—'}</td>
+      <td>
+        <div style="font-size:0.8rem;font-family:monospace">${esc(d.serial)||'—'}</div>
+      </td>
+      <td>${d.assignedTo ? esc(d.assignedTo) : '<span class="muted">Unassigned</span>'}</td>
+      <td>${d.site ? `<a href="branches.html?site=${encodeURIComponent(d.site)}" style="color:var(--accent2);text-decoration:none;font-weight:500">${esc(d.site)}</a>` : '<span class="muted">—</span>'}</td>
+      <td>${wLabel}</td>
+      <td><span class="badge ${badgeCls}">${esc(d.status)}</span></td>
+      <td>
+        <div class="row-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openView('${d.id}')">View</button>
+          <button class="btn btn-ghost btn-sm" onclick="startEdit('${d.id}')">Edit</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── FORM ──────────────────────────────────────────────────────────
+function getFormData() {
+  return {
+    name:       document.getElementById('fName').value.trim(),
+    type:       document.getElementById('fType').value,
+    brand:      document.getElementById('fBrand').value.trim(),
+    serial:     document.getElementById('fSerial').value.trim(),
+    asset:      document.getElementById('fAsset').value.trim(),
+    os:         document.getElementById('fOS').value.trim(),
+    ip:         document.getElementById('fIP').value.trim(),
+    purchased:  document.getElementById('fPurchased').value,
+    warranty:   document.getElementById('fWarranty').value,
+    assignedTo: document.getElementById('fAssignedTo').value.trim(),
+    site:       document.getElementById('fSite').value.trim(),
+    vendor:     document.getElementById('fVendor').value.trim(),
+    status:     document.getElementById('fStatus').value,
+    notes:      document.getElementById('fNotes').value.trim(),
+  };
+}
+
+function setFormData(d) {
+  document.getElementById('fName').value      = d.name       || '';
+  document.getElementById('fType').value      = d.type       || '';
+  document.getElementById('fBrand').value     = d.brand      || '';
+  document.getElementById('fSerial').value    = d.serial     || '';
+  document.getElementById('fAsset').value     = d.asset      || '';
+  document.getElementById('fOS').value        = d.os         || '';
+  document.getElementById('fIP').value        = d.ip         || '';
+  document.getElementById('fPurchased').value = d.purchased  || '';
+  document.getElementById('fWarranty').value  = d.warranty   || '';
+  document.getElementById('fAssignedTo').value= d.assignedTo || '';
+  document.getElementById('fSite').value      = d.site       || '';
+  document.getElementById('fVendor').value    = d.vendor     || '';
+  document.getElementById('fStatus').value    = d.status     || 'Active';
+  document.getElementById('fNotes').value     = d.notes      || '';
+}
+
+function clearForm() {
+  setFormData({});
+  document.getElementById('fStatus').value = 'Active';
+  document.getElementById('formTitle').textContent = 'Add Device';
+  document.getElementById('cancelBtn').style.display = 'none';
+  editingId = null;
+}
+
+function submitForm() {
+  const d = getFormData();
+  if (!d.name) { toast('Device name is required.', 'error'); return; }
+  if (!d.type) { toast('Device type is required.', 'error'); return; }
+
+  if (editingId) {
+    const idx = devices.findIndex(x=>x.id===editingId);
+    if (idx >= 0) devices[idx] = { ...devices[idx], ...d };
+    toast('Device updated.', 'success');
+  } else {
+    devices.push({ id: uid(), ...d });
+    toast('Device added.', 'success');
+  }
+  save(); clearForm(); renderAll();
+}
+
+function startEdit(id) {
+  const d = devices.find(x=>x.id===id);
+  if (!d) return;
+  editingId = id;
+  setFormData(d);
+  document.getElementById('formTitle').textContent = 'Edit Device';
+  document.getElementById('cancelBtn').style.display = '';
+  document.querySelector('.panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function cancelEdit() { clearForm(); }
+
+// ── VIEW MODAL ────────────────────────────────────────────────────
+function openView(id) {
+  const d = devices.find(x=>x.id===id);
+  if (!d) return;
+  const wCls = warrantyClass(d.warranty);
+  const badgeCls = STATUS_BADGES[d.status] || 'badge-active';
+  const icon = TYPE_ICONS[d.type] || '📦';
+
+  document.getElementById('viewTitle').innerHTML = `${icon} ${esc(d.name)} <span class="badge ${badgeCls}" style="font-size:0.7rem;margin-left:6px">${esc(d.status)}</span>`;
+
+  document.getElementById('viewBody').innerHTML = `
+    <div class="detail-section">
+      <h4>Device Info</h4>
+      <div class="detail-grid">
+        <div class="detail-item"><label>Type</label><span>${esc(d.type)||'—'}</span></div>
+        <div class="detail-item"><label>Brand</label><span>${esc(d.brand)||'—'}</span></div>
+        <div class="detail-item"><label>Serial Number</label><span style="font-family:monospace">${esc(d.serial)||'—'}</span></div>
+        <div class="detail-item"><label>Asset Tag</label><span style="font-family:monospace">${esc(d.asset)||'—'}</span></div>
+        <div class="detail-item"><label>OS / Firmware</label><span>${esc(d.os)||'—'}</span></div>
+        <div class="detail-item"><label>IP Address</label><span style="font-family:monospace">${esc(d.ip)||'—'}</span></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>Warranty & Purchase</h4>
+      <div class="detail-grid">
+        <div class="detail-item"><label>Purchase Date</label><span>${d.purchased||'—'}</span></div>
+        <div class="detail-item"><label>Warranty Expiry</label><span class="${wCls}">${d.warranty||'—'}</span></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>Assignment</h4>
+      <div class="detail-grid">
+        <div class="detail-item"><label>Assigned To</label><span>${esc(d.assignedTo)||'Unassigned'}</span></div>
+        <div class="detail-item"><label>Site / Location</label><span>${esc(d.site)||'—'}</span></div>
+        <div class="detail-item"><label>Support Vendor</label><span>${esc(d.vendor)||'—'}</span></div>
+      </div>
+    </div>
+    ${d.notes ? `<div class="detail-section"><h4>Notes</h4><div style="font-size:0.85rem;line-height:1.6">${esc(d.notes)}</div></div>` : ''}
+  `;
+
+  document.getElementById('viewActions').innerHTML = `
+    <button class="btn btn-primary" onclick="closeView();startEdit('${id}')">✏️ Edit</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteDevice('${id}')">🗑 Delete</button>
+    <button class="btn btn-ghost" onclick="closeView()">Close</button>
+  `;
+
+  document.getElementById('viewOverlay').classList.add('open');
+}
+
+function closeView() { document.getElementById('viewOverlay').classList.remove('open'); }
+
+function deleteDevice(id) {
+  const d = devices.find(x=>x.id===id);
+  if (!d) return;
+  if (!confirm(`Delete "${d.name}"? This cannot be undone.`)) return;
+  devices = devices.filter(x=>x.id!==id);
+  save(); closeView(); renderAll();
+  toast('Device deleted.', 'success');
+}
+
+// ── CSV EXPORT ────────────────────────────────────────────────────
+function exportCSV() {
+  const headers = ['Name','Type','Brand','Serial','Asset Tag','OS','IP','Purchased','Warranty','Assigned To','Site','Support Vendor','Status','Notes'];
+  const rows = devices.map(d => [d.name,d.type,d.brand,d.serial,d.asset,d.os,d.ip,d.purchased,d.warranty,d.assignedTo,d.site,d.vendor,d.status,d.notes].map(v=>`"${String(v||'').replace(/"/g,'""')}"`));
+  const csv = [headers, ...rows].map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'device-inventory.csv';
+  a.click();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.className='', 2800);
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────────
+function renderAll() {
+  renderStats();
+  renderTable();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+load();
+refreshDataLists();
+renderAll();
+// Theme
+function toggleTheme(){const l=document.documentElement.classList.toggle('light');localStorage.setItem('tf_theme',l?'light':'dark');document.getElementById('themeToggle').textContent=l?'🌙 Dark':'☀️ Light';}
+document.getElementById('themeToggle').textContent=document.documentElement.classList.contains('light')?'🌙 Dark':'☀️ Light';
+</script>
+</div><!-- /.main-wrap -->
+</body>
+</html>

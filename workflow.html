@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow — TaskFlow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #222535; --border: #2e3148;
+    --accent: #6c63ff; --accent2: #a78bfa; --text: #e2e8f0; --muted: #8892a4;
+    --green: #22c55e; --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6; --orange: #f97316;
+    --r: 10px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+  main { max-width: 1300px; margin: 0 auto; padding: 28px 24px; }
+
+  /* SECTION */
+  .section { margin-bottom: 52px; }
+  .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent2); font-weight: 600; margin-bottom: 6px; }
+  .section-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+  .section-sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 24px; }
+
+  /* ══════════════════════════════════════
+     SECTION 1 — APP MAP
+  ══════════════════════════════════════ */
+  .app-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0; position: relative; }
+  .map-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 22px 18px;
+    text-align: center;
+    position: relative;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
+  }
+  .map-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+  .map-card .icon { font-size: 2rem; margin-bottom: 10px; }
+  .map-card .name { font-size: 0.92rem; font-weight: 700; margin-bottom: 6px; }
+  .map-card .desc { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+  .map-card .links { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .map-link { font-size: 0.73rem; color: var(--accent2); background: rgba(108,99,255,0.1); border-radius: 5px; padding: 3px 8px; }
+
+  .map-arrows { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 28px; flex-wrap: wrap; }
+  .map-node {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    text-align: center;
+    min-width: 140px;
+    position: relative;
+    transition: all 0.2s;
+  }
+  .map-node:hover { border-color: var(--accent); transform: scale(1.03); }
+  .map-node .n-icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .map-node .n-name { font-size: 0.85rem; font-weight: 700; }
+  .map-node .n-sub { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .arrow { display: flex; flex-direction: column; align-items: center; padding: 0 4px; }
+  .arrow-line { width: 40px; height: 2px; background: var(--border); position: relative; }
+  .arrow-line::after { content: '▶'; position: absolute; right: -8px; top: -8px; font-size: 0.7rem; color: var(--muted); }
+  .arrow-label { font-size: 0.68rem; color: var(--muted); margin-top: 4px; white-space: nowrap; }
+
+  /* Color accents per page */
+  .node-dash  { border-color: var(--accent);  } .node-dash  .n-icon { filter: hue-rotate(0deg); }
+  .node-field { border-color: var(--blue);    }
+  .node-inv   { border-color: var(--green);   }
+  .node-admin { border-color: var(--yellow);  }
+  .node-flow  { border-color: var(--orange);  }
+
+  /* ══════════════════════════════════════
+     SECTION 2 — PROCESS FLOW
+  ══════════════════════════════════════ */
+  .process-flow { display: flex; flex-direction: column; gap: 0; }
+  .pf-step {
+    display: flex;
+    gap: 20px;
+    position: relative;
+  }
+  .pf-step:not(:last-child) .pf-line { background: var(--border); }
+  .pf-left { display: flex; flex-direction: column; align-items: center; width: 48px; flex-shrink: 0; }
+  .pf-dot {
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; font-weight: 700; border: 2px solid; flex-shrink: 0; z-index: 1;
+  }
+  .pf-line { width: 2px; flex: 1; min-height: 32px; margin: 0 auto; }
+  .pf-body { flex: 1; padding-bottom: 28px; padding-top: 8px; }
+  .pf-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+  .pf-desc  { font-size: 0.83rem; color: var(--muted); line-height: 1.6; }
+  .pf-badge { display: inline-block; font-size: 0.7rem; padding: 2px 9px; border-radius: 99px; font-weight: 600; margin-top: 8px; }
+  .pf-branch { margin-top: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .pf-branch-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; flex: 1; min-width: 140px; }
+  .pf-branch-item strong { display: block; margin-bottom: 3px; font-size: 0.82rem; }
+
+  /* Step colors */
+  .s1 .pf-dot { background: rgba(59,130,246,0.15);  border-color: var(--blue);   color: var(--blue);   }
+  .s1 .pf-line { background: linear-gradient(var(--blue), var(--accent)); }
+  .s2 .pf-dot { background: rgba(108,99,255,0.15); border-color: var(--accent); color: var(--accent2); }
+  .s2 .pf-line { background: linear-gradient(var(--accent), var(--yellow)); }
+  .s3 .pf-dot { background: rgba(245,158,11,0.15); border-color: var(--yellow); color: var(--yellow); }
+  .s3 .pf-line { background: linear-gradient(var(--yellow), var(--green)); }
+  .s4 .pf-dot { background: rgba(34,197,94,0.15);  border-color: var(--green);  color: var(--green);  }
+  .s4 .pf-line { background: linear-gradient(var(--green), var(--red)); }
+  .s5 .pf-dot { background: rgba(239,68,68,0.15);  border-color: var(--red);    color: var(--red);    }
+  .s5 .pf-line { background: linear-gradient(var(--red), var(--blue)); }
+  .s6 .pf-dot { background: rgba(108,99,255,0.15); border-color: var(--accent2);color: var(--accent2);}
+  .s6 .pf-line { background: var(--border); }
+  .s7 .pf-dot { background: rgba(34,197,94,0.2);   border-color: var(--green);  color: var(--green);  }
+
+  /* ══════════════════════════════════════
+     SECTION 3 — WORKFLOW BUILDER
+  ══════════════════════════════════════ */
+  .builder-layout { display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 750px) { .builder-layout { grid-template-columns: 1fr; } }
+
+  .builder-palette { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; }
+  .palette-title { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600; }
+  .node-block {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 8px; cursor: grab; user-select: none;
+    background: var(--surface2); transition: all 0.15s; font-size: 0.84rem; font-weight: 500;
+  }
+  .node-block:hover { border-color: var(--accent); background: rgba(108,99,255,0.08); transform: translateX(2px); }
+  .node-block:active { cursor: grabbing; }
+  .node-block .nb-icon { font-size: 1rem; width: 20px; text-align: center; }
+  .nb-type-start    { border-left: 3px solid var(--green);  }
+  .nb-type-action   { border-left: 3px solid var(--blue);   }
+  .nb-type-decision { border-left: 3px solid var(--yellow); }
+  .nb-type-end      { border-left: 3px solid var(--red);    }
+  .nb-type-notify   { border-left: 3px solid var(--orange); }
+  .nb-type-delay    { border-left: 3px solid var(--muted);  }
+
+  .builder-canvas-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+  .canvas-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface2); flex-wrap: wrap; }
+  .canvas-toolbar input { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 5px 10px; font-size: 0.82rem; outline: none; width: 180px; }
+  .canvas-toolbar input:focus { border-color: var(--accent); }
+  .ctbtn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 5px 12px; font-size: 0.78rem; cursor: pointer; transition: all 0.15s; }
+  .ctbtn:hover { border-color: var(--accent); color: var(--accent2); }
+  .ctbtn.danger:hover { border-color: var(--red); color: var(--red); }
+
+  #wfCanvas {
+    width: 100%; min-height: 520px; position: relative;
+    background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+    background-size: 24px 24px;
+    overflow: hidden;
+  }
+
+  /* Canvas nodes */
+  .wf-node {
+    position: absolute; min-width: 140px; max-width: 190px;
+    border: 2px solid var(--border); border-radius: 10px;
+    background: var(--surface2); padding: 12px 14px;
+    cursor: move; user-select: none; z-index: 10;
+    transition: box-shadow 0.15s;
+  }
+  .wf-node:hover { box-shadow: 0 0 0 2px var(--accent); z-index: 20; }
+  .wf-node.selected { box-shadow: 0 0 0 2px var(--accent2); z-index: 20; }
+  .wf-node.wfn-start    { border-color: var(--green);  }
+  .wf-node.wfn-action   { border-color: var(--blue);   }
+  .wf-node.wfn-decision { border-color: var(--yellow); border-radius: 0; transform-origin: center; }
+  .wf-node.wfn-end      { border-color: var(--red);    border-radius: 50px; }
+  .wf-node.wfn-notify   { border-color: var(--orange); }
+  .wf-node.wfn-delay    { border-color: var(--muted);  border-style: dashed; }
+  .wf-node-icon  { font-size: 1rem; margin-bottom: 4px; }
+  .wf-node-label { font-size: 0.82rem; font-weight: 600; line-height: 1.3; }
+  .wf-node-sub   { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .wf-node-del { position: absolute; top: 5px; right: 6px; background: none; border: none; color: var(--muted); font-size: 0.75rem; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1; padding: 2px; }
+  .wf-node:hover .wf-node-del { opacity: 1; }
+  .wf-node-del:hover { color: var(--red); }
+  .wf-node-connect { position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); cursor: crosshair; opacity: 0; transition: opacity 0.15s; z-index: 30; }
+  .wf-node:hover .wf-node-connect { opacity: 1; }
+
+  /* SVG arrows */
+  #arrowSvg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+  .wf-arrow { stroke: var(--accent); stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+  .wf-arrow-pending { stroke: var(--accent2); stroke-width: 1.5; stroke-dasharray: 6 4; fill: none; }
+
+  /* Node type colors for labels */
+  .type-start    { color: var(--green); } .type-action  { color: var(--blue); }
+  .type-decision { color: var(--yellow); } .type-end  { color: var(--red); }
+  .type-notify   { color: var(--orange); } .type-delay { color: var(--muted); }
+
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn:hover { background: #7c74ff; }
+  .btn-sm { padding: 5px 12px; font-size: 0.78rem; border-radius: 6px; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent2); background: transparent; }
+
+  /* SAVED WORKFLOWS */
+  .saved-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .saved-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.15s; }
+  .saved-item:hover { border-color: var(--accent); color: var(--accent2); }
+  .saved-del { color: var(--muted); font-size: 0.75rem; margin-left: 4px; }
+  .saved-del:hover { color: var(--red); }
+
+  /* EDIT POPOVER */
+  .node-popover {
+    position: absolute; background: var(--surface); border: 1px solid var(--accent); border-radius: 10px;
+    padding: 14px; z-index: 50; width: 220px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    display: none;
+  }
+  .node-popover.open { display: block; }
+  .pop-title { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; }
+  .pop-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 10px; font-size: 0.83rem; font-family: inherit; outline: none; width: 100%; margin-bottom: 8px; }
+  .pop-input:focus { border-color: var(--accent); }
+  .pop-actions { display: flex; gap: 7px; }  /* LIGHT THEME */
+  html.light { --bg: #f0f2f8; --surface: #ffffff; --surface2: #e8eaf4; --border: #d0d4e8; --text: #1a1d2e; --muted: #64748b; }
+
+  /* SIDEBAR NAV */
+  body { display: flex; }
+  .sidebar { width: 196px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; padding: 20px 12px 16px; }
+  .logo { font-size: 1.15rem; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; padding: 4px 8px 18px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .sidebar-nav a { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 0.84rem; font-weight: 500; transition: all 0.15s; white-space: nowrap; }
+  .sidebar-nav a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-nav a.active { background: rgba(108,99,255,0.14); color: var(--accent2); font-weight: 600; }
+  .nav-group-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--border); padding: 10px 10px 3px; margin-top: 2px; pointer-events: none; }
+  .theme-toggle { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 0.81rem; color: var(--muted); transition: all 0.15s; font-family: inherit; line-height: 1; width: 100%; text-align: left; margin-top: auto; }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent2); background: rgba(108,99,255,0.08); }
+  /* MAIN WRAP */
+  .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
+</style>
+<script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">Task<span>Flow</span></div>
+  <nav class="sidebar-nav">
+    <a href="index.html">📋 Dashboard</a>
+    <div class="nav-group-label">Operations</div>
+    <a href="fieldwork.html">🔧 Field Work</a>
+    <a href="invoices.html">🧾 Invoices</a>
+    <a href="projects.html">📁 Projects</a>
+    <div class="nav-group-label">Budget</div>
+    <a href="capex.html">💰 CapEx</a>
+    <a href="opex.html">📊 OpEx</a>
+    <div class="nav-group-label">Assets</div>
+    <a href="devices.html">💻 Devices</a>
+    <a href="branches.html">🏢 Branches</a>
+    <div class="nav-group-label">System</div>
+    <a href="workflow.html" class="active">🔀 Workflow</a>
+    <a href="admin.html">⚙️ Admin</a>
+  </nav>
+  <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">☀️ Light</button>
+</aside>
+
+<div class="main-wrap">
+
+<main>
+
+  <!-- ══ SECTION 1: APP MAP ══ -->
+  <div class="section">
+    <div class="section-label">Section 1</div>
+    <div class="section-title">App Navigation Map</div>
+    <div class="section-sub">How all pages in TaskFlow connect and what data flows between them.</div>
+
+    <div class="map-arrows">
+      <!-- Admin -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <a href="admin.html" style="text-decoration:none">
+          <div class="map-node node-admin">
+            <div class="n-icon">⚙</div>
+            <div class="n-name">Admin</div>
+            <div class="n-sub">Sites · Vendors</div>
+          </div>
+        </a>
+        <div style="font-size:0.7rem;color:var(--muted)">↓ site list</div>
+      </div>
+
+      <!-- Arrow -->
+      <div style="padding:0 8px;color:var(--muted);font-size:1.4rem;align-self:center">→</div>
+
+      <!-- Dashboard -->
+      <a href="index.html" style="text-decoration:none">
+        <div class="map-node node-dash">
+          <div class="n-icon">📋</div>
+          <div class="n-name">Dashboard</div>
+          <div class="n-sub">All tasks · Stats</div>
+        </div>
+      </a>
+
+      <!-- Arrow -->
+      <div style="padding:0 8px;color:var(--muted);font-size:1.4rem;align-self:center">→</div>
+
+      <!-- Field Work -->
+      <a href="fieldwork.html" style="text-decoration:none">
+        <div class="map-node node-field">
+          <div class="n-icon">🔧</div>
+          <div class="n-name">Field Work</div>
+          <div class="n-sub">Visits · Log</div>
+        </div>
+      </a>
+
+      <!-- Arrow -->
+      <div style="padding:0 8px;color:var(--muted);font-size:1.4rem;align-self:center">→</div>
+
+      <!-- Invoices -->
+      <a href="invoices.html" style="text-decoration:none">
+        <div class="map-node node-inv">
+          <div class="n-icon">🧾</div>
+          <div class="n-name">Invoices</div>
+          <div class="n-sub">Approve · Pay · Track</div>
+        </div>
+      </a>
+
+      <!-- Arrow -->
+      <div style="padding:0 8px;color:var(--muted);font-size:1.4rem;align-self:center">→</div>
+
+      <!-- Workflow -->
+      <div class="map-node node-flow" style="cursor:default">
+        <div class="n-icon">🔀</div>
+        <div class="n-name">Workflow</div>
+        <div class="n-sub">Process · Builder</div>
+      </div>
+    </div>
+
+    <!-- Data flow legend -->
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:8px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;flex:1;min-width:200px">
+        <div style="font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Data Written By</div>
+        <div style="font-size:0.82rem;line-height:2">
+          ⚙ Admin → site names (shared dropdown)<br>
+          🔧 Field Work → visit log, vendor names<br>
+          🧾 Invoices → invoice records, approvals<br>
+          📋 Dashboard → task list
+        </div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;flex:1;min-width:200px">
+        <div style="font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Data Read By</div>
+        <div style="font-size:0.82rem;line-height:2">
+          🔧 Field Work ← site names from Admin<br>
+          🧾 Invoices ← field visit invoices (import)<br>
+          🧾 Invoices ← vendor names from Field Work<br>
+          🔀 Workflow ← saved workflows (localStorage)
+        </div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;flex:1;min-width:200px">
+        <div style="font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Shared Storage Keys</div>
+        <div style="font-size:0.82rem;line-height:2;font-family:monospace;font-size:0.79rem;color:var(--accent2)">
+          tf_sites<br>tf_site_names<br>taskflow_visits<br>tf_invoices<br>taskflow_tasks
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECTION 2: PROCESS FLOW ══ -->
+  <div class="section">
+    <div class="section-label">Section 2</div>
+    <div class="section-title">Field Visit → Invoice Process Flow</div>
+    <div class="section-sub">End-to-end flow from a field visit being logged to the invoice being paid.</div>
+
+    <div class="process-flow">
+
+      <div class="pf-step s1">
+        <div class="pf-left">
+          <div class="pf-dot">🔧</div>
+          <div class="pf-line"></div>
+        </div>
+        <div class="pf-body">
+          <div class="pf-title">Field Visit Occurs</div>
+          <div class="pf-desc">A third-party vendor performs work at a site. The visit is logged in the <strong>Field Work</strong> page with vendor name, site, description, and date.</div>
+          <span class="pf-badge" style="background:rgba(59,130,246,0.12);color:var(--blue)">📍 Field Work page</span>
+        </div>
+      </div>
+
+      <div class="pf-step s2">
+        <div class="pf-left">
+          <div class="pf-dot">🧾</div>
+          <div class="pf-line"></div>
+        </div>
+        <div class="pf-body">
+          <div class="pf-title">Invoice Received from Vendor</div>
+          <div class="pf-desc">The third party sends an invoice. The invoice number, amount, and due date are logged in the field visit record. The invoice is also imported (or manually entered) into the <strong>Invoices</strong> page for tracking.</div>
+          <span class="pf-badge" style="background:rgba(108,99,255,0.12);color:var(--accent2)">🧾 Invoices page · Status: Submitted</span>
+        </div>
+      </div>
+
+      <div class="pf-step s3">
+        <div class="pf-left">
+          <div class="pf-dot">👁</div>
+          <div class="pf-line"></div>
+        </div>
+        <div class="pf-body">
+          <div class="pf-title">Review & Verification</div>
+          <div class="pf-desc">The invoice is reviewed against the visit record — amount, site, scope of work. PO number is cross-checked if applicable.</div>
+          <div class="pf-branch">
+            <div class="pf-branch-item" style="border-color:var(--green)">
+              <strong style="color:var(--green)">✓ Matches visit record</strong>
+              Proceed to approval
+            </div>
+            <div class="pf-branch-item" style="border-color:var(--red)">
+              <strong style="color:var(--red)">✕ Discrepancy found</strong>
+              Mark as Disputed — add comment with reason
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pf-step s4">
+        <div class="pf-left">
+          <div class="pf-dot">✓</div>
+          <div class="pf-line"></div>
+        </div>
+        <div class="pf-body">
+          <div class="pf-title">Approval</div>
+          <div class="pf-desc">Invoice is approved via the <strong>Invoices</strong> detail panel. Comment logged to the approval trail with date. Invoice status changes to <em>Approved</em>.</div>
+          <span class="pf-badge" style="background:rgba(34,197,94,0.12);color:var(--green)">✓ Status: Approved</span>
+        </div>
+      </div>
+
+      <div class="pf-step s5">
+        <div class="pf-left">
+          <div class="pf-dot">💸</div>
+          <div class="pf-line"></div>
+        </div>
+        <div class="pf-body">
+          <div class="pf-title">Payment Processed</div>
+          <div class="pf-desc">Payment is made externally. Invoice is marked <em>Paid</em> in the system. The aging bar clears and the amount moves from <em>Unpaid Balance</em> to <em>Total Paid</em>.</div>
+          <span class="pf-badge" style="background:rgba(59,130,246,0.12);color:var(--blue)">$ Status: Paid</span>
+        </div>
+      </div>
+
+      <div class="pf-step s6">
+        <div class="pf-left">
+          <div class="pf-dot">📊</div>
+          <div class="pf-line"></div>
+        </div>
+        <div class="pf-body">
+          <div class="pf-title">Reporting & Export</div>
+          <div class="pf-desc">At any time, all records can be exported to CSV from both the Field Work and Invoices pages for accounting, reporting, or auditing purposes.</div>
+          <span class="pf-badge" style="background:rgba(108,99,255,0.12);color:var(--accent2)">⬇ Export CSV</span>
+        </div>
+      </div>
+
+      <div class="pf-step s7">
+        <div class="pf-left">
+          <div class="pf-dot">🔁</div>
+        </div>
+        <div class="pf-body">
+          <div class="pf-title">Cycle Repeats</div>
+          <div class="pf-desc">The vendor returns for the next visit. The site remains managed in <strong>Admin</strong>, and the vendor name autocompletes from historical records.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ SECTION 3: BUILDER ══ -->
+  <div class="section">
+    <div class="section-label">Section 3</div>
+    <div class="section-title">Workflow Builder</div>
+    <div class="section-sub">Drag nodes onto the canvas, connect them, and save your custom workflows.</div>
+
+    <div class="builder-layout">
+
+      <!-- PALETTE -->
+      <div>
+        <div class="builder-palette">
+          <div class="palette-title">Node Types</div>
+          <div class="node-block nb-type-start"  draggable="true" ondragstart="dragStart(event,'start','🟢','Start')"><span class="nb-icon">🟢</span> Start</div>
+          <div class="node-block nb-type-action"  draggable="true" ondragstart="dragStart(event,'action','⚡','Action')"><span class="nb-icon">⚡</span> Action</div>
+          <div class="node-block nb-type-decision"draggable="true" ondragstart="dragStart(event,'decision','🔀','Decision')"><span class="nb-icon">🔀</span> Decision</div>
+          <div class="node-block nb-type-notify"  draggable="true" ondragstart="dragStart(event,'notify','🔔','Notify')"><span class="nb-icon">🔔</span> Notify</div>
+          <div class="node-block nb-type-delay"   draggable="true" ondragstart="dragStart(event,'delay','⏱','Wait / Delay')"><span class="nb-icon">⏱</span> Wait / Delay</div>
+          <div class="node-block nb-type-end"     draggable="true" ondragstart="dragStart(event,'end','🔴','End')"><span class="nb-icon">🔴</span> End</div>
+        </div>
+
+        <div style="margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px">
+          <div class="palette-title">Tips</div>
+          <div style="font-size:0.78rem;color:var(--muted);line-height:1.8">
+            • Drag nodes onto the canvas<br>
+            • Click a node to rename it<br>
+            • Hover node → click <strong style="color:var(--accent2)">●</strong> to connect<br>
+            • Click connection dot then another node<br>
+            • Save workflow with a name<br>
+            • Load saved workflows below
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <div class="palette-title" style="font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:10px">Saved Workflows</div>
+          <div class="saved-list" id="savedList"></div>
+        </div>
+      </div>
+
+      <!-- CANVAS -->
+      <div class="builder-canvas-wrap">
+        <div class="canvas-toolbar">
+          <input type="text" id="wfName" placeholder="Workflow name…" value="New Workflow" />
+          <button class="ctbtn" onclick="saveWorkflow()">💾 Save</button>
+          <button class="ctbtn" onclick="clearCanvas()">🗑 Clear</button>
+          <button class="ctbtn" onclick="loadPreset()">⚡ Load Sample</button>
+          <span style="flex:1"></span>
+          <span style="font-size:0.75rem;color:var(--muted)" id="nodeCount">0 nodes</span>
+        </div>
+        <div id="wfCanvas"
+          ondragover="event.preventDefault()"
+          ondrop="dropNode(event)">
+          <svg id="arrowSvg">
+            <defs>
+              <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#6c63ff" />
+              </marker>
+              <marker id="arrowhead-pending" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#a78bfa" />
+              </marker>
+            </defs>
+            <g id="arrowGroup"></g>
+            <path id="pendingArrow" class="wf-arrow-pending" d="" marker-end="url(#arrowhead-pending)" />
+          </svg>
+          <div id="nodePopover" class="node-popover">
+            <div class="pop-title">Edit Node</div>
+            <input class="pop-input" type="text" id="popLabel" placeholder="Label…" />
+            <input class="pop-input" type="text" id="popSub" placeholder="Sub-label (optional)…" />
+            <div class="pop-actions">
+              <button class="btn btn-sm" onclick="applyPopover()">Apply</button>
+              <button class="btn btn-ghost btn-sm" onclick="closePopover()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── BUILDER STATE ───────────────────────────────────────────────
+let nodes = [];
+let arrows = [];
+let dragType = null, dragIcon = null, dragLabel = null;
+let connectingFrom = null;
+let selectedNode = null;
+let popoverNodeId = null;
+let draggingNode = null, dragOffX = 0, dragOffY = 0;
+
+const typeIcons = { start:'🟢', action:'⚡', decision:'🔀', notify:'🔔', delay:'⏱', end:'🔴' };
+
+function uid() { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+
+// ── DRAG FROM PALETTE ───────────────────────────────────────────
+function dragStart(e, type, icon, label) {
+  dragType = type; dragIcon = icon; dragLabel = label;
+  e.dataTransfer.effectAllowed = 'copy';
+}
+
+function dropNode(e) {
+  e.preventDefault();
+  if (!dragType) return;
+  const canvas = document.getElementById('wfCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left - 70;
+  const y = e.clientY - rect.top - 30;
+  addNode(dragType, dragIcon, dragLabel, Math.max(8, x), Math.max(8, y));
+  dragType = null;
+}
+
+function addNode(type, icon, label, x, y, sub, id) {
+  const node = { id: id||uid(), type, icon: icon||typeIcons[type], label: label||type, sub: sub||'', x, y };
+  nodes.push(node);
+  renderNode(node);
+  updateCount();
+  return node;
+}
+
+function renderNode(node) {
+  const canvas = document.getElementById('wfCanvas');
+  const el = document.createElement('div');
+  el.id = 'node-' + node.id;
+  el.className = `wf-node wfn-${node.type}`;
+  el.style.left = node.x + 'px';
+  el.style.top  = node.y + 'px';
+  el.innerHTML = `
+    <button class="wf-node-del" onclick="deleteNode('${node.id}')">✕</button>
+    <div class="wf-node-icon">${node.icon}</div>
+    <div class="wf-node-label">${esc(node.label)}</div>
+    ${node.sub ? `<div class="wf-node-sub">${esc(node.sub)}</div>` : ''}
+    <div class="wf-node-connect" title="Connect" onclick="startConnect(event,'${node.id}')"></div>
+  `;
+  // Drag to move
+  el.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('wf-node-del') || e.target.classList.contains('wf-node-connect')) return;
+    if (connectingFrom) { finishConnect(node.id); return; }
+    draggingNode = node;
+    const rect = el.getBoundingClientRect();
+    dragOffX = e.clientX - rect.left;
+    dragOffY = e.clientY - rect.top;
+    el.style.zIndex = 30;
+    e.preventDefault();
+  });
+  el.addEventListener('dblclick', e => { if (!e.target.classList.contains('wf-node-del') && !e.target.classList.contains('wf-node-connect')) openPopover(node.id, el); });
+  canvas.appendChild(el);
+}
+
+// Drag-to-move
+document.addEventListener('mousemove', e => {
+  if (!draggingNode) return;
+  const canvas = document.getElementById('wfCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.max(0, e.clientX - rect.left - dragOffX);
+  const y = Math.max(0, e.clientY - rect.top  - dragOffY);
+  draggingNode.x = x; draggingNode.y = y;
+  const el = document.getElementById('node-' + draggingNode.id);
+  if (el) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
+  // Update pending arrow if connecting
+  if (connectingFrom) drawPendingArrow(e.clientX, e.clientY);
+  redrawArrows();
+});
+document.addEventListener('mouseup', () => {
+  if (draggingNode) { draggingNode = null; }
+});
+
+// ── CONNECTIONS ──────────────────────────────────────────────────
+function startConnect(e, id) {
+  e.stopPropagation();
+  if (connectingFrom === id) { connectingFrom = null; document.getElementById('pendingArrow').setAttribute('d',''); return; }
+  connectingFrom = id;
+  document.getElementById('wfCanvas').style.cursor = 'crosshair';
+}
+
+function finishConnect(toId) {
+  if (!connectingFrom || connectingFrom === toId) { connectingFrom = null; return; }
+  // Avoid duplicate
+  if (!arrows.find(a => a.from === connectingFrom && a.to === toId)) {
+    arrows.push({ id: uid(), from: connectingFrom, to: toId });
+  }
+  connectingFrom = null;
+  document.getElementById('pendingArrow').setAttribute('d','');
+  document.getElementById('wfCanvas').style.cursor = '';
+  redrawArrows();
+}
+
+function drawPendingArrow(mx, my) {
+  if (!connectingFrom) return;
+  const fromNode = nodes.find(n => n.id === connectingFrom);
+  if (!fromNode) return;
+  const canvas = document.getElementById('wfCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const fx = fromNode.x + 70, fy = fromNode.y + 44;
+  const tx = mx - rect.left, ty = my - rect.top;
+  const path = bezier(fx, fy, tx, ty);
+  document.getElementById('pendingArrow').setAttribute('d', path);
+}
+
+document.addEventListener('mousemove', e => { if (connectingFrom) drawPendingArrow(e.clientX, e.clientY); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { connectingFrom = null; document.getElementById('pendingArrow').setAttribute('d',''); document.getElementById('wfCanvas').style.cursor = ''; } });
+
+function bezier(x1, y1, x2, y2) {
+  const cx = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
+}
+
+function nodeCenterBottom(node) { return { x: node.x + 70, y: node.y + 50 }; }
+function nodeCenterTop(node)    { return { x: node.x + 70, y: node.y }; }
+
+function redrawArrows() {
+  const g = document.getElementById('arrowGroup');
+  g.innerHTML = '';
+  arrows.forEach(a => {
+    const from = nodes.find(n => n.id === a.from);
+    const to   = nodes.find(n => n.id === a.to);
+    if (!from || !to) return;
+    const f = nodeCenterBottom(from), t = nodeCenterTop(to);
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', bezier(f.x, f.y, t.x, t.y));
+    path.setAttribute('class','wf-arrow');
+    path.addEventListener('click', () => {
+      if (confirm('Remove this connection?')) { arrows = arrows.filter(x => x.id !== a.id); redrawArrows(); }
+    });
+    path.style.cursor = 'pointer';
+    path.style.pointerEvents = 'stroke';
+    g.appendChild(path);
+  });
+}
+
+// ── DELETE ───────────────────────────────────────────────────────
+function deleteNode(id) {
+  nodes = nodes.filter(n => n.id !== id);
+  arrows = arrows.filter(a => a.from !== id && a.to !== id);
+  const el = document.getElementById('node-' + id);
+  if (el) el.remove();
+  redrawArrows(); updateCount();
+  if (connectingFrom === id) connectingFrom = null;
+}
+
+// ── POPOVER EDIT ─────────────────────────────────────────────────
+function openPopover(id, el) {
+  const node = nodes.find(n => n.id === id);
+  if (!node) return;
+  popoverNodeId = id;
+  document.getElementById('popLabel').value = node.label;
+  document.getElementById('popSub').value   = node.sub || '';
+  const pop = document.getElementById('nodePopover');
+  pop.style.left = (node.x + 145) + 'px';
+  pop.style.top  = (node.y) + 'px';
+  pop.classList.add('open');
+  document.getElementById('popLabel').focus();
+}
+
+function applyPopover() {
+  const node = nodes.find(n => n.id === popoverNodeId);
+  if (!node) return;
+  node.label = document.getElementById('popLabel').value.trim() || node.label;
+  node.sub   = document.getElementById('popSub').value.trim();
+  const el = document.getElementById('node-' + node.id);
+  if (el) {
+    el.querySelector('.wf-node-label').textContent = node.label;
+    const subEl = el.querySelector('.wf-node-sub');
+    if (node.sub) {
+      if (subEl) subEl.textContent = node.sub;
+      else { const d = document.createElement('div'); d.className = 'wf-node-sub'; d.textContent = node.sub; el.insertBefore(d, el.querySelector('.wf-node-connect')); }
+    } else if (subEl) subEl.remove();
+  }
+  closePopover();
+}
+
+function closePopover() { document.getElementById('nodePopover').classList.remove('open'); popoverNodeId = null; }
+document.addEventListener('mousedown', e => { if (popoverNodeId && !document.getElementById('nodePopover').contains(e.target)) closePopover(); });
+
+// ── SAVE / LOAD ──────────────────────────────────────────────────
+function saveWorkflow() {
+  const name = document.getElementById('wfName').value.trim() || 'Untitled';
+  const saved = JSON.parse(localStorage.getItem('tf_workflows') || '{}');
+  saved[name] = { nodes: nodes.map(n => ({...n})), arrows: arrows.map(a => ({...a})) };
+  localStorage.setItem('tf_workflows', JSON.stringify(saved));
+  renderSaved();
+  showToast('Saved: ' + name);
+}
+
+function loadWorkflow(name) {
+  const saved = JSON.parse(localStorage.getItem('tf_workflows') || '{}');
+  const wf = saved[name];
+  if (!wf) return;
+  clearCanvas(true);
+  document.getElementById('wfName').value = name;
+  wf.nodes.forEach(n => addNode(n.type, n.icon, n.label, n.x, n.y, n.sub, n.id));
+  arrows = wf.arrows.map(a => ({...a}));
+  redrawArrows();
+}
+
+function deleteWorkflow(name) {
+  const saved = JSON.parse(localStorage.getItem('tf_workflows') || '{}');
+  delete saved[name];
+  localStorage.setItem('tf_workflows', JSON.stringify(saved));
+  renderSaved();
+}
+
+function renderSaved() {
+  const saved = JSON.parse(localStorage.getItem('tf_workflows') || '{}');
+  const el = document.getElementById('savedList');
+  const keys = Object.keys(saved);
+  if (keys.length === 0) { el.innerHTML = '<div style="font-size:0.78rem;color:var(--muted)">No saved workflows yet.</div>'; return; }
+  el.innerHTML = keys.map(k => `
+    <div class="saved-item" onclick="loadWorkflow('${esc(k)}')">
+      🔀 ${esc(k)}
+      <span class="saved-del" onclick="event.stopPropagation();deleteWorkflow('${esc(k)}')" title="Delete">✕</span>
+    </div>`).join('');
+}
+
+function clearCanvas(silent) {
+  nodes.forEach(n => { const el = document.getElementById('node-'+n.id); if(el) el.remove(); });
+  nodes = []; arrows = [];
+  document.getElementById('arrowGroup').innerHTML = '';
+  document.getElementById('pendingArrow').setAttribute('d','');
+  connectingFrom = null;
+  closePopover();
+  updateCount();
+  if (!silent) document.getElementById('wfName').value = 'New Workflow';
+}
+
+function updateCount() {
+  document.getElementById('nodeCount').textContent = nodes.length + ' node' + (nodes.length!==1?'s':'');
+}
+
+function loadPreset() {
+  clearCanvas(true);
+  document.getElementById('wfName').value = 'Field Visit → Payment';
+  const n1 = addNode('start',    '🔧', 'Field Visit',       60,  30, 'Third-party attends site');
+  const n2 = addNode('action',   '📝', 'Log Visit',        280,  30, 'Record in Field Work page');
+  const n3 = addNode('action',   '🧾', 'Vendor Invoices',  500,  30, 'Invoice received');
+  const n4 = addNode('decision', '🔀', 'Amount Correct?',  500, 160);
+  const n5 = addNode('action',   '✓',  'Approve Invoice',  500, 290, 'Invoices → Approve');
+  const n6 = addNode('action',   '⚑',  'Dispute / Reject', 720, 160, 'Add comment & reject');
+  const n7 = addNode('action',   '💸', 'Mark as Paid',     500, 410, 'Payment processed');
+  const n8 = addNode('end',      '🔴', 'Complete',         500, 520);
+  arrows = [
+    { id:uid(), from:n1.id, to:n2.id },
+    { id:uid(), from:n2.id, to:n3.id },
+    { id:uid(), from:n3.id, to:n4.id },
+    { id:uid(), from:n4.id, to:n5.id },
+    { id:uid(), from:n4.id, to:n6.id },
+    { id:uid(), from:n5.id, to:n7.id },
+    { id:uid(), from:n7.id, to:n8.id },
+  ];
+  redrawArrows(); updateCount();
+}
+
+let toastT;
+function showToast(msg) {
+  let t = document.getElementById('builderToast');
+  if (!t) { t = document.createElement('div'); t.id='builderToast'; t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--green);color:var(--green);border-radius:9px;padding:10px 16px;font-size:0.84rem;z-index:999;transition:opacity 0.25s'; document.body.appendChild(t); }
+  t.textContent = '✓ ' + msg; t.style.opacity = '1';
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { t.style.opacity = '0'; }, 2500);
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Init
+renderSaved();
+loadPreset();
+// Theme
+function toggleTheme(){const l=document.documentElement.classList.toggle('light');localStorage.setItem('tf_theme',l?'light':'dark');document.getElementById('themeToggle').textContent=l?'🌙 Dark':'☀️ Light';}
+document.getElementById('themeToggle').textContent=document.documentElement.classList.contains('light')?'🌙 Dark':'☀️ Light';
+</script>
+</div><!-- /.main-wrap -->
+</body>
+</html>
