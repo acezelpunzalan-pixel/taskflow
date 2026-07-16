@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — TaskFlow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #222535; --border: #2e3148;
+    --accent: #6c63ff; --accent2: #a78bfa; --text: #e2e8f0; --muted: #8892a4;
+    --green: #22c55e; --red: #ef4444; --r: 12px;
+  }
+  html.light { --bg: #f0f2f8; --surface: #ffffff; --surface2: #e8eaf4; --border: #d0d4e8; --text: #1a1d2e; --muted: #64748b; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 40px 36px;
+    width: 100%; max-width: 400px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+  }
+
+  .logo {
+    font-size: 1.5rem; font-weight: 800; color: var(--accent2);
+    letter-spacing: -0.5px; margin-bottom: 6px; text-align: center;
+  }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .subtitle {
+    text-align: center; color: var(--muted); font-size: 0.86rem;
+    margin-bottom: 32px;
+  }
+
+  .fg { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .fg label { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500; }
+
+  .input-wrap { position: relative; }
+  input[type=email], input[type=password], input[type=text] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 9px; color: var(--text); padding: 11px 14px;
+    font-size: 0.92rem; font-family: inherit; outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent); }
+  input.err { border-color: var(--red); }
+
+  .pw-toggle {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: var(--muted);
+    font-size: 0.85rem; padding: 4px; line-height: 1;
+  }
+  .pw-toggle:hover { color: var(--text); }
+
+  .btn {
+    width: 100%; background: var(--accent); color: #fff; border: none;
+    border-radius: 9px; padding: 12px; font-size: 0.92rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s, transform 0.1s;
+    font-family: inherit; margin-top: 8px; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+  }
+  .btn:hover:not(:disabled) { background: #7c74ff; }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 8px; padding: 11px 14px; font-size: 0.84rem;
+    color: #f87171; margin-bottom: 16px; display: none; line-height: 1.4;
+  }
+  .error-box.show { display: block; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  .contact-note {
+    text-align: center; font-size: 0.79rem; color: var(--muted); line-height: 1.5;
+  }
+
+  /* decorative bg dots */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: -1;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(108,99,255,0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(167,139,250,0.06) 0%, transparent 50%);
+  }
+</style>
+<script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">Task<span>Flow</span></div>
+  <p class="subtitle" id="subtitle">Sign in to your workspace</p>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- ── Supabase login (shown when localOnly: false) ── -->
+  <div id="sbForm">
+    <div class="fg">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="you@company.com" autocomplete="email" onkeydown="onSbKey(event)">
+    </div>
+    <div class="fg">
+      <label>Password</label>
+      <div class="input-wrap">
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" onkeydown="onSbKey(event)">
+        <button class="pw-toggle" type="button" onclick="togglePw()" id="pwToggle" tabindex="-1">👁</button>
+      </div>
+    </div>
+    <button class="btn" id="signInBtn" onclick="signIn()">Sign In</button>
+    <hr class="divider">
+    <p class="contact-note">Don't have an account?<br>Contact your administrator to get access.</p>
+  </div>
+
+  <!-- ── Local mode form (shown when localOnly: true) ── -->
+  <div id="localForm" style="display:none">
+    <div class="fg">
+      <label>Your Name</label>
+      <input type="text" id="localName" placeholder="e.g. Ace" autocomplete="name" onkeydown="onLocalKey(event)">
+    </div>
+    <div class="fg">
+      <label>Role</label>
+      <select id="localRole">
+        <option>Admin</option>
+        <option>Reviewer</option>
+        <option>Field Staff</option>
+        <option>Viewer</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Department <span style="font-weight:400;text-transform:none">(optional)</span></label>
+      <input type="text" id="localDept" placeholder="e.g. IT or Facilities" onkeydown="onLocalKey(event)">
+    </div>
+    <button class="btn" onclick="localSignIn()">Continue →</button>
+    <p style="margin-top:14px;text-align:center;font-size:0.77rem;color:var(--muted);line-height:1.5">
+      Running in local mode — all data is stored in your browser.<br>
+      To enable a shared database, set <code style="background:var(--surface2);padding:1px 5px;border-radius:4px">localOnly: false</code> in config.js.
+    </p>
+  </div>
+</div>
+
+<script>
+  // ── Init: pick which form to show ────────────────────────────
+  (async () => {
+    if (DB.isConfigured()) {
+      // Supabase mode: redirect if already logged in
+      const { data: { session } } = await _sb.auth.getSession();
+      if (session) { window.location.replace('index.html'); return; }
+    } else {
+      // Local mode: redirect if already have a profile
+      const saved = JSON.parse(localStorage.getItem('tf_current_user') || 'null');
+      if (saved && saved.name) { window.location.replace('index.html'); return; }
+      // Show local form
+      document.getElementById('sbForm').style.display   = 'none';
+      document.getElementById('localForm').style.display = '';
+      document.getElementById('subtitle').textContent    = 'Who are you?';
+      setTimeout(() => document.getElementById('localName').focus(), 50);
+    }
+  })();
+
+  // ── Helpers ──────────────────────────────────────────────────
+  function showError(msg) {
+    const el = document.getElementById('errorBox');
+    el.textContent = msg; el.classList.add('show');
+  }
+  function clearError() { document.getElementById('errorBox').classList.remove('show'); }
+
+  // ── Local mode sign-in ────────────────────────────────────────
+  function onLocalKey(e) { if (e.key === 'Enter') localSignIn(); }
+
+  function localSignIn() {
+    clearError();
+    const name = document.getElementById('localName').value.trim();
+    if (!name) { showError('Please enter your name.'); document.getElementById('localName').focus(); return; }
+    const role = document.getElementById('localRole').value;
+    const dept = document.getElementById('localDept').value.trim();
+    const user = { name, role, email: '', department: dept, status: 'active' };
+    localStorage.setItem('tf_current_user', JSON.stringify(user));
+    window.location.replace('index.html');
+  }
+
+  // ── Supabase sign-in ──────────────────────────────────────────
+  function onSbKey(e) { if (e.key === 'Enter') signIn(); }
+
+  function togglePw() {
+    const inp = document.getElementById('password');
+    const btn = document.getElementById('pwToggle');
+    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+    else { inp.type = 'password'; btn.textContent = '👁'; }
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById('signInBtn');
+    btn.disabled = on;
+    btn.innerHTML = on ? '<div class="spinner"></div> Signing in…' : 'Sign In';
+  }
+
+  async function signIn() {
+    clearError();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    if (!email)    { showError('Please enter your email.');    document.getElementById('email').focus();    return; }
+    if (!password) { showError('Please enter your password.'); document.getElementById('password').focus(); return; }
+
+    setLoading(true);
+    const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+    setLoading(false);
+
+    if (error) {
+      showError(error.message === 'Invalid login credentials'
+        ? 'Incorrect email or password. Please try again.'
+        : error.message);
+      document.getElementById('password').value = '';
+      return;
+    }
+    window.location.replace('index.html');
+  }
+</script>
+</body>
+</html>
