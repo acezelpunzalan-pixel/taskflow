@@ -268,6 +268,10 @@
   /* MAIN WRAP */
   .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
@@ -636,11 +640,13 @@
     setFormFlag(prefix+'Booked', prefix+'BookedTog', 'on-booked', false);
   }
 
-  function quickToggle(id, field) {
+  async function quickToggle(id, field) {
     const inv = invoices.find(i => i.id === id);
     if (!inv) return;
     inv[field] = !inv[field];
-    save(); renderTable();
+    await DB.saveInvoice(inv);
+    invoices = await DB.getInvoices();
+    renderTable();
   }
 
   // ── FILE ATTACHMENT HELPERS ──────────────────────────────────────
@@ -725,7 +731,7 @@
   }
 
   // ── DATA ────────────────────────────────────────────────────────
-  let invoices = JSON.parse(localStorage.getItem('tf_invoices') || '[]');
+  let invoices = [];
   let editingId = null;
   let activeFilter = 'all';
   let sortCol = 'invDate';
@@ -735,11 +741,11 @@
 
   const today = () => new Date().toISOString().split('T')[0];
 
-  if (invoices.length === 0) {
+  function _defaultInvoices() {
     const t = today();
     const past30 = dateMinus(t, 30), past10 = dateMinus(t, 10), past5 = dateMinus(t, 5);
     const due7 = datePlus(t, 7), due14 = datePlus(t, 14), due30 = datePlus(t, 30);
-    invoices = [
+    const invoices = [
       mk('INV-2024-001','CoolTech Services','HVAC preventive maintenance','Field Work','PO-101',450.00,past30,dateMinus(t,5),'paid',[{type:'comment',text:'Received invoice.',date:past30},{type:'approved',text:'Looks good, approved.',date:dateMinus(t,20)},{type:'paid',text:'Payment processed.',date:dateMinus(t,5)}],'',true,true),
       mk('INV-2024-002','Volt Masters Inc.','Electrical panel inspection','Field Work','PO-102',320.00,past10,due7,'submitted',[{type:'comment',text:'Invoice submitted for review.',date:past10}],'',true,false),
       mk('INV-2024-003','AquaFix Co.','Plumbing repair – leak fix','Maintenance','PO-103',210.50,past30,dateMinus(t,15),'rejected',[{type:'comment',text:'Amount higher than quoted.',date:past30},{type:'rejected',text:'Disputed: quoted was $150, invoiced $210.50.',date:dateMinus(t,25)}],'',false,false),
@@ -764,20 +770,13 @@
     invoices.forEach(inv => {
       if (!inv.department) inv.department = inv.category === 'SaaS' ? 'IT' : 'Facilities';
     });
-    save();
+    return invoices;
   }
-
-  // Migration: ensure all existing invoices have department/created_by fields
-  invoices.forEach(inv => {
-    if (!inv.hasOwnProperty('department')) inv.department = '';
-    if (!inv.hasOwnProperty('created_by')) inv.created_by = '';
-  });
 
   function mk(invNum,vendor,desc,category,po,amount,invDate,dueDate,status,trail,file,gr,booked,department,createdBy) {
     return { id: uid(), invNum, vendor, desc, category, po, amount, invDate, dueDate, status, trail: trail||[], file: file||'', attachment_path:'', attachment_name:'', gr: !!gr, booked: !!booked, department: department||'', created_by: createdBy||'', created: Date.now() };
   }
   function uid() { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
-  function save() { localStorage.setItem('tf_invoices', JSON.stringify(invoices)); }
   function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function datePlus(d,n) { const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().split('T')[0]; }
@@ -811,7 +810,7 @@
       ? document.getElementById('nDept').value
       : (cu.department || '');
 
-    invoices.unshift({
+    const record = {
       id: newId,
       invNum: document.getElementById('nInvNum').value.trim(),
       vendor,
@@ -831,8 +830,10 @@
       gr:     document.getElementById('nGr').value === '1',
       booked: document.getElementById('nBooked').value === '1',
       created: Date.now()
-    });
-    save();
+    };
+    const { error } = await DB.saveInvoice(record);
+    if (error) { alert('Save failed: ' + error.message); return; }
+    invoices = await DB.getInvoices();
     ['nDesc','nVendor','nInvNum','nPO','nAmount','nInvDate','nDueDate'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nDept').value = '';
     clearAttach('n', null);
@@ -840,17 +841,20 @@
     renderAll();
   }
 
-  function deleteInvoice(id) {
-    invoices = invoices.filter(i=>i.id!==id);
-    save(); renderAll();
+  async function deleteInvoice(id) {
+    await DB.deleteInvoice(id);
+    invoices = await DB.getInvoices();
+    renderAll();
   }
 
-  function quickStatus(id, status) {
+  async function quickStatus(id, status) {
     const inv = invoices.find(i=>i.id===id);
     if (!inv) return;
     inv.status = status;
     inv.trail.push({ type: status, text: status.charAt(0).toUpperCase()+status.slice(1)+' (quick action).', date: today() });
-    save(); renderAll();
+    await DB.saveInvoice(inv);
+    invoices = await DB.getInvoices();
+    renderAll();
   }
 
   // ── MODAL ───────────────────────────────────────────────────────
@@ -921,7 +925,7 @@
       </div>`).join('');
   }
 
-  function addComment(type) {
+  async function addComment(type) {
     const inv = invoices.find(i=>i.id===editingId);
     if (!inv) return;
     const text = document.getElementById('commentText').value.trim() || (type==='approved'?'Approved.':type==='rejected'?'Rejected.':type==='paid'?'Marked as paid.':'Note added.');
@@ -931,7 +935,9 @@
     if (type === 'paid')     inv.status = 'paid';
     document.getElementById('eStatus').value = inv.status;
     document.getElementById('commentText').value = '';
-    save(); renderTrail(inv); renderAll();
+    await DB.saveInvoice(inv);
+    invoices = await DB.getInvoices();
+    renderTrail(inv); renderAll();
   }
 
   async function saveEdit() {
@@ -965,7 +971,9 @@
       inv.file = ''; inv.attachment_path = ''; inv.attachment_name = '';
     }
 
-    save(); closeModal(); renderAll();
+    await DB.saveInvoice(inv);
+    invoices = await DB.getInvoices();
+    closeModal(); renderAll();
   }
 
   function closeModal() {
@@ -974,13 +982,13 @@
   }
 
   // ── IMPORT FROM FIELD WORK ───────────────────────────────────────
-  function openNew() {
-    const visits = JSON.parse(localStorage.getItem('taskflow_visits')||'[]');
+  async function openNew() {
+    const visits = await DB.getVisits();
     const existingInvNums = new Set(invoices.map(i=>i.invNum).filter(Boolean));
     const toImport = visits.filter(v => v.invoice && !existingInvNums.has(v.invoice));
     if (toImport.length === 0) { alert('No new field work invoices to import. All are already tracked here.'); return; }
-    toImport.forEach(v => {
-      invoices.unshift({
+    for (const v of toImport) {
+      const record = {
         id: uid(),
         invNum: v.invoice,
         vendor: v.vendor,
@@ -996,9 +1004,11 @@
         department: (window.CURRENT_USER && window.CURRENT_USER.department) || '',
         created_by: (window.CURRENT_USER && (window.CURRENT_USER.email || window.CURRENT_USER.name)) || '',
         created: Date.now()
-      });
-    });
-    save(); renderAll();
+      };
+      await DB.saveInvoice(record);
+    }
+    invoices = await DB.getInvoices();
+    renderAll();
     alert(`✓ Imported ${toImport.length} invoice(s) from Field Work.`);
   }
 
@@ -1405,7 +1415,23 @@
   // auth.js sets CURRENT_USER synchronously in localStorage mode; async in Supabase mode
   // Use a short poll so both paths work without tight coupling
   (function waitForUser(tries) {
-    if (window.CURRENT_USER || tries <= 0) { initDeptAccess(); renderAll(); return; }
+    if (window.CURRENT_USER || tries <= 0) {
+      (async () => {
+        invoices = await DB.getInvoices();
+        if (!invoices.length) {
+          for (const inv of _defaultInvoices()) await DB.saveInvoice(inv);
+          invoices = await DB.getInvoices();
+        }
+        // Migration: ensure all existing invoices have department/created_by fields
+        invoices.forEach(inv => {
+          if (!inv.hasOwnProperty('department')) inv.department = '';
+          if (!inv.hasOwnProperty('created_by')) inv.created_by = '';
+        });
+        initDeptAccess();
+        renderAll();
+      })();
+      return;
+    }
     setTimeout(() => waitForUser(tries - 1), 80);
   })(25);
 

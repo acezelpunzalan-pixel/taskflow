@@ -467,31 +467,32 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script>
-  let tasks = JSON.parse(localStorage.getItem('taskflow_tasks') || '[]');
+  let tasks = [];
   let editingId = null;
   let activeFilter = 'all';
 
-  // Seed sample tasks if empty
-  if (tasks.length === 0) {
+  function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+  function _defaultTasks() {
     const today = new Date().toISOString().split('T')[0];
-    tasks = [
+    return [
       { id: uid(), title: 'Review project proposal', priority: 'high', status: 'todo', category: 'Work', due: today, notes: '', created: Date.now() },
       { id: uid(), title: 'Update team documentation', priority: 'medium', status: 'progress', category: 'Work', due: today, notes: '', created: Date.now() },
       { id: uid(), title: 'Set up dev environment', priority: 'low', status: 'done', category: 'Tech', due: '', notes: '', created: Date.now() },
       { id: uid(), title: 'Schedule weekly standup', priority: 'medium', status: 'todo', category: 'Work', due: '', notes: '', created: Date.now() },
       { id: uid(), title: 'Read design specs', priority: 'high', status: 'progress', category: 'Design', due: '', notes: '', created: Date.now() },
     ];
-    save();
   }
 
-  function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-  function save() { localStorage.setItem('taskflow_tasks', JSON.stringify(tasks)); }
-
-  function addTask() {
+  async function addTask() {
     const title = document.getElementById('newTitle').value.trim();
     if (!title) { document.getElementById('newTitle').focus(); return; }
-    tasks.unshift({
+    const record = {
       id: uid(),
       title,
       priority: document.getElementById('newPriority').value,
@@ -500,22 +501,24 @@
       due: document.getElementById('newDue').value,
       notes: '',
       created: Date.now()
-    });
-    save();
+    };
+    await DB.saveTask(record);
+    tasks = await DB.getTasks();
     document.getElementById('newTitle').value = '';
     document.getElementById('newCategory').value = '';
     document.getElementById('newDue').value = '';
     renderAll();
   }
 
-  function deleteTask(id) {
-    tasks = tasks.filter(t => t.id !== id);
-    save(); renderAll();
+  async function deleteTask(id) {
+    await DB.deleteTask(id);
+    tasks = await DB.getTasks();
+    renderAll();
   }
 
-  function moveTask(id, status) {
+  async function moveTask(id, status) {
     const t = tasks.find(t => t.id === id);
-    if (t) { t.status = status; save(); renderAll(); }
+    if (t) { t.status = status; await DB.saveTask(t); tasks = await DB.getTasks(); renderAll(); }
   }
 
   function openEdit(id) {
@@ -531,7 +534,7 @@
     document.getElementById('editModal').classList.add('open');
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     const t = tasks.find(t => t.id === editingId);
     if (!t) return;
     t.title = document.getElementById('editTitle').value.trim() || t.title;
@@ -540,7 +543,9 @@
     t.category = document.getElementById('editCategory').value.trim();
     t.due = document.getElementById('editDue').value;
     t.notes = document.getElementById('editNotes').value;
-    save(); closeModal(); renderAll();
+    await DB.saveTask(t);
+    tasks = await DB.getTasks();
+    closeModal(); renderAll();
   }
 
   function closeModal() {
@@ -635,7 +640,15 @@
     if (e.target === this) closeModal();
   });
 
-  renderAll();
+  async function init() {
+    tasks = await DB.getTasks();
+    if (!tasks.length) {
+      for (const t of _defaultTasks()) await DB.saveTask(t);
+      tasks = await DB.getTasks();
+    }
+    renderAll();
+  }
+  init();
 </script>
 </body>
 </html>

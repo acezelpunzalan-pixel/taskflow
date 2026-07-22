@@ -138,6 +138,10 @@
   /* MAIN WRAP */
   .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
@@ -377,14 +381,13 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function today() { return new Date().toISOString().slice(0,10); }
 
-function load() {
-  devices = JSON.parse(localStorage.getItem(KEY) || '[]');
-  if (devices.length === 0) seedData();
+async function load() {
+  devices = await DB.getDevices();
+  if (devices.length === 0) await seedData();
 }
-function save() { localStorage.setItem(KEY, JSON.stringify(devices)); }
 
 // ── SEED ────────────────────────────────────────────────────────
-function seedData() {
+async function seedData() {
   const t = today();
   const yr = new Date().getFullYear();
   devices = [
@@ -399,22 +402,23 @@ function seedData() {
     { id:uid(), name:'iPhone 15 Pro', type:'Mobile / Tablet', brand:'Apple', serial:'FFMXQ1ABCDE', asset:'IT-0009', os:'iOS 17', ip:'DHCP', purchased:`${yr}-01-15`, warranty:`${yr+1}-01-14`, assignedTo:'Maria Santos', site:'Building A', vendor:'Apple Care', status:'Active', notes:'Company mobile device.' },
     { id:uid(), name:'HP UPS R1500 INTL', type:'UPS', brand:'HP', serial:'UPS2020XA', asset:'IT-0010', os:'', ip:'', purchased:`${yr-4}-09-10`, warranty:`${yr-1}-09-10`, assignedTo:'', site:'Building A', vendor:'', status:'In Storage', notes:'Replaced — check battery health before reuse.' },
   ];
-  save();
+  for (const d of devices) await DB.saveDevice(d);
+  devices = await DB.getDevices();
 }
 
 // ── DATALISTS ────────────────────────────────────────────────────
-function refreshDataLists() {
+async function refreshDataLists() {
   // Users
-  const users = JSON.parse(localStorage.getItem('tf_users') || '[]');
+  const users = await DB.getUsers();
   document.getElementById('userNameList').innerHTML =
-    users.filter(u=>u.status==='Active').map(u=>`<option value="${esc(u.name)}">`).join('');
+    users.filter(u=>u.status==='active').map(u=>`<option value="${esc(u.name)}">`).join('');
 
   // Sites
-  const sites = JSON.parse(localStorage.getItem('tf_site_names') || '[]');
+  const sites = await DB.getSiteNames();
   document.getElementById('siteNameList').innerHTML = sites.map(s=>`<option value="${esc(s)}">`).join('');
 
   // Vendors
-  const vendors = JSON.parse(localStorage.getItem('tf_vendor_names') || '[]');
+  const vendors = await DB.getVendorNames();
   document.getElementById('vendorNameList').innerHTML = vendors.map(v=>`<option value="${esc(v)}">`).join('');
 }
 
@@ -605,20 +609,21 @@ function clearForm() {
   editingId = null;
 }
 
-function submitForm() {
+async function submitForm() {
   const d = getFormData();
   if (!d.name) { toast('Device name is required.', 'error'); return; }
   if (!d.type) { toast('Device type is required.', 'error'); return; }
 
   if (editingId) {
-    const idx = devices.findIndex(x=>x.id===editingId);
-    if (idx >= 0) devices[idx] = { ...devices[idx], ...d };
-    toast('Device updated.', 'success');
+    d.id = editingId;
   } else {
-    devices.push({ id: uid(), ...d });
-    toast('Device added.', 'success');
+    d.id = uid();
   }
-  save(); clearForm(); renderAll();
+  const { error } = await DB.saveDevice(d);
+  if (error) { toast('Save failed: ' + error.message, 'error'); return; }
+  devices = await DB.getDevices();
+  toast(editingId ? 'Device updated.' : 'Device added.', 'success');
+  clearForm(); renderAll();
 }
 
 function startEdit(id) {
@@ -684,12 +689,13 @@ function openView(id) {
 
 function closeView() { document.getElementById('viewOverlay').classList.remove('open'); }
 
-function deleteDevice(id) {
+async function deleteDevice(id) {
   const d = devices.find(x=>x.id===id);
   if (!d) return;
   if (!confirm(`Delete "${d.name}"? This cannot be undone.`)) return;
-  devices = devices.filter(x=>x.id!==id);
-  save(); closeView(); renderAll();
+  await DB.deleteDevice(id);
+  devices = await DB.getDevices();
+  closeView(); renderAll();
   toast('Device deleted.', 'success');
 }
 
@@ -721,9 +727,12 @@ function renderAll() {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
-load();
-refreshDataLists();
-renderAll();
+async function init() {
+  await load();
+  await refreshDataLists();
+  renderAll();
+}
+init();
 // Theme
 function toggleTheme(){const l=document.documentElement.classList.toggle('light');localStorage.setItem('tf_theme',l?'light':'dark');document.getElementById('themeToggle').textContent=l?'🌙 Dark':'☀️ Light';}
 document.getElementById('themeToggle').textContent=document.documentElement.classList.contains('light')?'🌙 Dark':'☀️ Light';

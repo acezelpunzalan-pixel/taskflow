@@ -223,6 +223,10 @@
   /* MAIN WRAP */
   .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
@@ -723,37 +727,48 @@ function closePopover() { document.getElementById('nodePopover').classList.remov
 document.addEventListener('mousedown', e => { if (popoverNodeId && !document.getElementById('nodePopover').contains(e.target)) closePopover(); });
 
 // ── SAVE / LOAD ──────────────────────────────────────────────────
-function saveWorkflow() {
+let _workflowsCache = [];
+
+async function saveWorkflow() {
   const name = document.getElementById('wfName').value.trim() || 'Untitled';
-  const saved = JSON.parse(localStorage.getItem('tf_workflows') || '{}');
-  saved[name] = { nodes: nodes.map(n => ({...n})), arrows: arrows.map(a => ({...a})) };
-  localStorage.setItem('tf_workflows', JSON.stringify(saved));
+  _workflowsCache = await DB.getWorkflows();
+  const existing = _workflowsCache.find(w => w.name === name);
+  const record = {
+    name,
+    nodes: nodes.map(n => ({...n})),
+    arrows: arrows.map(a => ({...a})),
+  };
+  if (existing) record.id = existing.id;
+  const { error } = await DB.saveWorkflow(record);
+  if (error) { showToast('Save failed: ' + error.message); return; }
+  _workflowsCache = await DB.getWorkflows();
   renderSaved();
   showToast('Saved: ' + name);
 }
 
-function loadWorkflow(name) {
-  const saved = JSON.parse(localStorage.getItem('tf_workflows') || '{}');
-  const wf = saved[name];
+async function loadWorkflow(name) {
+  _workflowsCache = await DB.getWorkflows();
+  const wf = _workflowsCache.find(w => w.name === name);
   if (!wf) return;
   clearCanvas(true);
   document.getElementById('wfName').value = name;
-  wf.nodes.forEach(n => addNode(n.type, n.icon, n.label, n.x, n.y, n.sub, n.id));
-  arrows = wf.arrows.map(a => ({...a}));
+  (wf.nodes||[]).forEach(n => addNode(n.type, n.icon, n.label, n.x, n.y, n.sub, n.id));
+  arrows = (wf.arrows||[]).map(a => ({...a}));
   redrawArrows();
 }
 
-function deleteWorkflow(name) {
-  const saved = JSON.parse(localStorage.getItem('tf_workflows') || '{}');
-  delete saved[name];
-  localStorage.setItem('tf_workflows', JSON.stringify(saved));
+async function deleteWorkflow(name) {
+  _workflowsCache = await DB.getWorkflows();
+  const wf = _workflowsCache.find(w => w.name === name);
+  if (!wf) return;
+  await DB.deleteWorkflow(wf.id);
+  _workflowsCache = await DB.getWorkflows();
   renderSaved();
 }
 
 function renderSaved() {
-  const saved = JSON.parse(localStorage.getItem('tf_workflows') || '{}');
   const el = document.getElementById('savedList');
-  const keys = Object.keys(saved);
+  const keys = _workflowsCache.map(w => w.name);
   if (keys.length === 0) { el.innerHTML = '<div style="font-size:0.78rem;color:var(--muted)">No saved workflows yet.</div>'; return; }
   el.innerHTML = keys.map(k => `
     <div class="saved-item" onclick="loadWorkflow('${esc(k)}')">
@@ -812,7 +827,11 @@ function showToast(msg) {
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // Init
-renderSaved();
+async function init() {
+  _workflowsCache = await DB.getWorkflows();
+  renderSaved();
+}
+init();
 loadPreset();
 // Theme
 function toggleTheme(){const l=document.documentElement.classList.toggle('light');localStorage.setItem('tf_theme',l?'light':'dark');document.getElementById('themeToggle').textContent=l?'🌙 Dark':'☀️ Light';}

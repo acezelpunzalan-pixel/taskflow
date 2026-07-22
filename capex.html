@@ -331,11 +331,11 @@ function toast(msg,type='ok'){
 function curYear(){ return new Date().getFullYear(); }
 
 // ── DATA ──────────────────────────────────────────────────
-let items = JSON.parse(localStorage.getItem('tf_capex')||'[]');
+let items = [];
 let editingId = null, filterVal = 'all', sortCol = 'name', sortDir = 1;
 
-if (!items.length) {
-  items = [
+function _defaultCapex() {
+  return [
     {id:uid(),name:'Data Center Server Rack Upgrade',category:'IT Infrastructure',department:'IT',year:2026,budget:85000,spent:62000,start:'2026-01-15',end:'2026-06-30',status:'in_progress',ref:'PO-2026-001',notes:'Replace aging Dell PowerEdge servers. Phase 1 of 2.'},
     {id:uid(),name:'IP CCTV Expansion — All Sites',category:'Security Systems',department:'Facilities',year:2026,budget:42000,spent:42000,start:'2026-02-01',end:'2026-04-30',status:'completed',ref:'PO-2026-002',notes:'64 cameras across 4 buildings. Completed on budget.'},
     {id:uid(),name:'Building A — Electrical Panel Upgrade',category:'Building & Renovation',department:'Facilities',year:2026,budget:55000,spent:18000,start:'2026-04-01',end:'2026-09-30',status:'in_progress',ref:'PO-2026-003',notes:'30-year-old panels. Safety compliance requirement.'},
@@ -345,10 +345,7 @@ if (!items.length) {
     {id:uid(),name:'Biometric Access Control System',category:'Security Systems',department:'IT',year:2026,budget:38000,spent:5500,start:'2026-05-01',end:'2026-07-31',status:'in_progress',ref:'PO-2026-007',notes:'Replace key cards with fingerprint + card readers.'},
     {id:uid(),name:'Office Furniture Refresh — Level 3',category:'Equipment',department:'HR',year:2026,budget:22000,spent:0,start:'2026-09-01',end:'2026-10-31',status:'planned',ref:'',notes:'Ergonomic workstations for open-plan redesign.'},
   ];
-  localStorage.setItem('tf_capex', JSON.stringify(items));
 }
-
-function save(){ localStorage.setItem('tf_capex', JSON.stringify(items)); }
 
 // ── YEAR FILTER ──────────────────────────────────────────
 function populateYears(){
@@ -508,7 +505,7 @@ function openModal(id){
 
 function closeModal(){ document.getElementById('formModal').classList.remove('open'); editingId=null; }
 
-function submitForm(){
+async function submitForm(){
   const name=document.getElementById('fName').value.trim();
   if(!name){ document.getElementById('fName').focus(); toast('Name is required.','err'); return; }
   const record={
@@ -525,24 +522,21 @@ function submitForm(){
     ref: document.getElementById('fRef').value.trim(),
     notes: document.getElementById('fNotes').value.trim(),
   };
-  if(editingId){
-    const idx=items.findIndex(i=>i.id===editingId);
-    if(idx>=0) items[idx]=record;
-    toast('Item updated.');
-  } else {
-    items.unshift(record);
-    toast('CapEx item added.');
-  }
-  save(); closeModal(); renderAll();
+  const { error } = await DB.saveCapex(record);
+  if (error) { toast('Save failed: ' + error.message, 'err'); return; }
+  items = await DB.getCapex();
+  toast(editingId ? 'Item updated.' : 'CapEx item added.');
+  closeModal(); renderAll();
 }
 
 // ── DELETE ───────────────────────────────────────────────
 function confirmDelete(id){
   const item=items.find(i=>i.id===id);
   document.getElementById('delMsg').textContent=`"${item?.name}" will be permanently deleted.`;
-  document.getElementById('delConfirmBtn').onclick=()=>{
-    items=items.filter(i=>i.id!==id);
-    save(); closeDelModal(); renderAll(); toast('Item deleted.');
+  document.getElementById('delConfirmBtn').onclick=async ()=>{
+    await DB.deleteCapex(id);
+    items = await DB.getCapex();
+    closeDelModal(); renderAll(); toast('Item deleted.');
   };
   document.getElementById('delModal').classList.add('open');
 }
@@ -563,7 +557,15 @@ document.getElementById('formModal').addEventListener('click',e=>{if(e.target===
 document.getElementById('delModal').addEventListener('click',e=>{if(e.target===document.getElementById('delModal'))closeDelModal();});
 
 // ── INIT ─────────────────────────────────────────────────
-renderAll();
+async function init() {
+  items = await DB.getCapex();
+  if (!items.length) {
+    for (const it of _defaultCapex()) await DB.saveCapex(it);
+    items = await DB.getCapex();
+  }
+  renderAll();
+}
+init();
 </script>
 </body>
 </html>

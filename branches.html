@@ -141,9 +141,19 @@
   /* OVERVIEW TAB */
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
   .info-item label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; display: block; margin-bottom: 3px; }
-  .info-item span  { font-size: 0.88rem; font-weight: 500; }  /* LIGHT THEME */
+  .info-item span  { font-size: 0.88rem; font-weight: 500; }
+
+  /* WARRANTY STATUS (matches devices.html) */
+  .warn-expire { color: var(--yellow) !important; font-weight: 600; }
+  .expired     { color: var(--red)    !important; font-weight: 600; }
+
+  /* LIGHT THEME */
   html.light { --bg: #f0f2f8; --surface: #ffffff; --surface2: #e8eaf4; --border: #d0d4e8; --text: #1a1d2e; --muted: #64748b; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
@@ -206,10 +216,10 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function fmt(n){ return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 // ── DATA ──────────────────────────────────────────────────────────
-function getSites()    { return JSON.parse(localStorage.getItem('tf_sites')         || '[]'); }
-function getVisits()   { return JSON.parse(localStorage.getItem('taskflow_visits')  || '[]'); }
-function getInvoices() { return JSON.parse(localStorage.getItem('tf_invoices')      || '[]'); }
-function getDevices()  { return JSON.parse(localStorage.getItem('tf_devices')       || '[]'); }
+async function getSites()    { return await DB.getSites(); }
+async function getVisits()   { return await DB.getVisits(); }
+async function getInvoices() { return await DB.getInvoices(); }
+async function getDevices()  { return await DB.getDevices(); }
 
 let selectedSite = null;
 let currentTab   = 'tickets';
@@ -217,10 +227,10 @@ let currentTab   = 'tickets';
 // ── SIDEBAR ───────────────────────────────────────────────────────
 const STATUS_ICONS = { Office:'🏢', Warehouse:'🏭', Site:'📍', Building:'🏗️', Plant:'🔧', Other:'📦' };
 
-function buildSidebarItems(sites) {
-  const visits   = getVisits();
-  const devices  = getDevices();
-  const invoices = getInvoices();
+async function buildSidebarItems(sites) {
+  const visits   = await getVisits();
+  const devices  = await getDevices();
+  const invoices = await getInvoices();
 
   return sites.map(s => {
     const name = s.name;
@@ -237,8 +247,9 @@ function buildSidebarItems(sites) {
   });
 }
 
-function renderSidebar() {
-  const sites = getSites().filter(s => s.status !== 'Inactive' || true); // show all
+async function renderSidebar() {
+  const allSites = await getSites();
+  const sites = allSites.filter(s => (s.status||'').toLowerCase() !== 'inactive' || true); // show all
   const q = (document.getElementById('sidebarSearch')?.value || '').toLowerCase();
   const filtered = q ? sites.filter(s => s.name.toLowerCase().includes(q) || (s.code||'').toLowerCase().includes(q)) : sites;
 
@@ -248,9 +259,9 @@ function renderSidebar() {
     return;
   }
 
-  const items = buildSidebarItems(filtered);
+  const items = await buildSidebarItems(filtered);
   list.innerHTML = items.map(({ s, name, openTickets, devCount, siteIcon, isSelected }) => {
-    const statusChip = s.status === 'Inactive'
+    const statusChip = (s.status||'').toLowerCase() === 'inactive'
       ? `<span class="bi-chip muted">Inactive</span>` : '';
     const ticketChip = openTickets > 0 ? `<span class="bi-chip yellow">🎫 ${openTickets} ticket${openTickets>1?'s':''}</span>` : '';
     const devChip    = devCount > 0    ? `<span class="bi-chip blue">💻 ${devCount} device${devCount>1?'s':''}</span>` : '';
@@ -265,8 +276,8 @@ function renderSidebar() {
 function filterSidebar() { renderSidebar(); }
 
 // ── SELECT BRANCH ─────────────────────────────────────────────────
-function selectBranch(id) {
-  const sites = getSites();
+async function selectBranch(id) {
+  const sites = await getSites();
   selectedSite = sites.find(s => s.id === id) || null;
   if (!selectedSite) return;
 
@@ -287,15 +298,15 @@ function switchTab(tab) {
 }
 
 // ── DETAIL ────────────────────────────────────────────────────────
-function renderDetail() {
+async function renderDetail() {
   if (!selectedSite) return;
   const s = selectedSite;
 
-  const visits   = getVisits().filter(v => v.site === s.name);
-  const devices  = getDevices().filter(d => d.site === s.name);
+  const visits   = (await getVisits()).filter(v => v.site === s.name);
+  const devices  = (await getDevices()).filter(d => d.site === s.name);
 
   // Invoice matching: by invoiceNum cross-ref or same vendor who visited here
-  const allInvoices = getInvoices();
+  const allInvoices = await getInvoices();
   const visitVendors = new Set(visits.map(v=>v.vendor).filter(Boolean));
   const visitInvNums = new Set(visits.map(v=>v.invoiceNum).filter(Boolean));
   const invoices = allInvoices.filter(inv =>
@@ -507,4 +518,43 @@ function renderDetail() {
   `;
 }
 
-// ── WARRANTY CLASS ────────────────────────�
+// ── WARRANTY CLASS ──────────────────────────────────────────────────
+function warrantyClass(dateStr) {
+  if (!dateStr) return '';
+  const now = new Date(); now.setHours(0,0,0,0);
+  const d90 = new Date(now); d90.setDate(d90.getDate()+90);
+  const w = new Date(dateStr); w.setHours(0,0,0,0);
+  if (w < now) return 'expired';
+  if (w <= d90) return 'warn-expire';
+  return '';
+}
+
+// ── THEME ─────────────────────────────────────────────────────────
+function toggleTheme(){const l=document.documentElement.classList.toggle('light');localStorage.setItem('tf_theme',l?'light':'dark');document.getElementById('themeToggle').textContent=l?'🌙 Dark':'☀️ Light';}
+
+// ── INIT ──────────────────────────────────────────────────────────
+async function init() {
+  renderSidebar();
+
+  // Deep-link support: admin.html, devices.html, and fieldwork.html
+  // link here with ?site=<name> to jump straight to a branch.
+  const params = new URLSearchParams(window.location.search);
+  const wantedSite = params.get('site');
+  if (wantedSite) {
+    const sites = await getSites();
+    const match = sites.find(s => s.name === wantedSite);
+    if (match) {
+      selectedSite = match;
+      currentTab = 'tickets';
+      renderSidebar();
+      renderDetail();
+    }
+  }
+}
+
+init();
+</script>
+
+</div>
+</body>
+</html>

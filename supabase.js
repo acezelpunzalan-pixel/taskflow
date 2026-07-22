@@ -461,6 +461,14 @@ if (!DB.isConfigured()) {
   DB.saveWorkflow    = async w  => { if (!w.id) w.id = _lsUid(); _lsSave('tf_workflows', _upsert(_lsGet('tf_workflows'), w)); return _ok(w); };
   DB.deleteWorkflow  = async id => { _lsSave('tf_workflows', _lsGet('tf_workflows').filter(r => r.id !== id)); return _err0(); };
 
+  DB.getCapex    = async () => _lsGet('tf_capex').sort((a,b) => (b.created||0) - (a.created||0));
+  DB.saveCapex   = async c  => { if (!c.id) c.id = _lsUid(); _lsSave('tf_capex', _upsert(_lsGet('tf_capex'), c)); return _ok(c); };
+  DB.deleteCapex = async id => { _lsSave('tf_capex', _lsGet('tf_capex').filter(r => r.id !== id)); return _err0(); };
+
+  DB.getOpex    = async () => _lsGet('tf_opex').sort((a,b) => (b.created||0) - (a.created||0));
+  DB.saveOpex   = async o  => { if (!o.id) o.id = _lsUid(); _lsSave('tf_opex', _upsert(_lsGet('tf_opex'), o)); return _ok(o); };
+  DB.deleteOpex = async id => { _lsSave('tf_opex', _lsGet('tf_opex').filter(r => r.id !== id)); return _err0(); };
+
   // Attachments / file upload — no-op in local mode
   DB.getAttachments  = async () => [];
   DB.saveAttachment  = async () => _ok(null);
@@ -538,6 +546,14 @@ if (!DB.isConfigured()) {
   DB.getWorkflows   = async () => (await _gsGet('Workflows')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   DB.saveWorkflow   = async w  => _gsUpsert('Workflows', w);
   DB.deleteWorkflow = async id => _gsDel('Workflows', id);
+
+  DB.getCapex    = async () => (await _gsGet('Capex')).sort((a,b) => (b.created||0) - (a.created||0));
+  DB.saveCapex   = async c  => _gsUpsert('Capex', c);
+  DB.deleteCapex = async id => _gsDel('Capex', id);
+
+  DB.getOpex    = async () => (await _gsGet('Opex')).sort((a,b) => (b.created||0) - (a.created||0));
+  DB.saveOpex   = async o  => _gsUpsert('Opex', o);
+  DB.deleteOpex = async id => _gsDel('Opex', id);
 
   // Attachments are not supported in Sheets mode (no file storage)
   DB.getAttachments   = async () => [];

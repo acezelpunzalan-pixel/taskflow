@@ -168,6 +168,10 @@
   /* MAIN WRAP */
   .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
 </head>
 <body>
@@ -443,25 +447,23 @@
     });
   }
 
-  let visits = JSON.parse(localStorage.getItem('taskflow_visits') || '[]');
+  let visits = [];
   let editingId = null;
   let activeFilter = 'all';
   let sortCol = 'date';
   let sortDir = -1; // -1 = desc
 
-  if (visits.length === 0) {
+  function _defaultVisits() {
     const today = new Date().toISOString().split('T')[0];
-    visits = [
+    return [
       { id: uid(), desc: 'HVAC preventive maintenance', vendor: 'CoolTech Services', site: 'Building A', date: today, invoice: 'INV-2024-001', amount: 450.00, status: 'approved', notes: '', created: Date.now() },
       { id: uid(), desc: 'Electrical panel inspection', vendor: 'Volt Masters Inc.', site: 'Site B', date: today, invoice: 'INV-2024-002', amount: 320.00, status: 'pending', notes: '', created: Date.now() },
       { id: uid(), desc: 'Plumbing repair – leak fix', vendor: 'AquaFix Co.', site: 'Building C', date: today, invoice: 'INV-2024-003', amount: 210.50, status: 'disputed', notes: 'Amount higher than quoted.', created: Date.now() },
       { id: uid(), desc: 'Fire suppression check', vendor: 'SafeGuard Systems', site: 'Warehouse 1', date: today, invoice: 'INV-2024-004', amount: 580.00, status: 'paid', notes: '', created: Date.now() },
     ];
-    save();
   }
 
   function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-  function save() { localStorage.setItem('taskflow_visits', JSON.stringify(visits)); }
   function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -479,7 +481,7 @@
       const r = await _resolveFile(_nPendingFile, 'visits', newId);
       if (r) { fileUrl = r.url || ''; filePath = r.path || ''; fileName = r.name || ''; }
     }
-    visits.unshift({
+    const record = {
       id: newId,
       desc,
       vendor,
@@ -493,22 +495,25 @@
       attachment_path: filePath,
       attachment_name: fileName,
       created: Date.now()
-    });
-    save();
+    };
+    const { error } = await DB.saveVisit(record);
+    if (error) { alert('Save failed: ' + error.message); return; }
+    visits = await DB.getVisits();
     ['newDesc','newVendor','newSite','newDate','newInvoice','newAmount'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('newStatus').value = 'pending';
     clearAttach('n', null);
     renderAll();
   }
 
-  function deleteVisit(id) {
-    visits = visits.filter(v => v.id !== id);
-    save(); renderAll();
+  async function deleteVisit(id) {
+    await DB.deleteVisit(id);
+    visits = await DB.getVisits();
+    renderAll();
   }
 
-  function setStatus(id, status) {
+  async function setStatus(id, status) {
     const v = visits.find(v => v.id === id);
-    if (v) { v.status = status; save(); renderAll(); }
+    if (v) { v.status = status; await DB.saveVisit(v); visits = await DB.getVisits(); renderAll(); }
   }
 
   function openEdit(id) {
@@ -562,7 +567,14 @@
       }
       v.file = ''; v.attachment_path = ''; v.attachment_name = '';
     }
-    save(); closeModal(); renderAll();
+    await _persistEdit(v);
+    closeModal(); renderAll();
+  }
+
+  async function _persistEdit(v) {
+    const { error } = await DB.saveVisit(v);
+    if (error) { alert('Save failed: ' + error.message); return; }
+    visits = await DB.getVisits();
   }
 
   function closeModal() {
@@ -599,7 +611,7 @@
     });
   }
 
-  function renderAll() {
+  async function renderAll() {
     // Stats
     const total = visits.length;
     const pending = visits.filter(v => v.status === 'pending').length;
@@ -624,13 +636,13 @@
     document.getElementById('sumTotal').textContent = fmt(totalAmt);
 
     // Vendor datalist — admin master list first, fallback to visit history
-    const adminVendors = JSON.parse(localStorage.getItem('tf_vendor_names') || '[]');
+    const adminVendors = await DB.getVendorNames();
     const historyVendors = [...new Set(visits.map(v => v.vendor).filter(Boolean))];
     const allVendors = [...new Set([...adminVendors, ...historyVendors])];
     document.getElementById('vendorList').innerHTML = allVendors.map(v => `<option value="${esc(v)}">`).join('');
 
     // Site datalist from admin
-    const siteNames = JSON.parse(localStorage.getItem('tf_site_names') || '[]');
+    const siteNames = await DB.getSiteNames();
     document.getElementById('siteList').innerHTML = siteNames.map(s => `<option value="${esc(s)}">`).join('');
 
     renderTable();
@@ -690,7 +702,15 @@
   document.getElementById('sort-date').textContent = '↓';
   document.getElementById('sort-date').parentElement.classList.add('sorted');
 
-  renderAll();
+  async function init() {
+    visits = await DB.getVisits();
+    if (!visits.length) {
+      for (const v of _defaultVisits()) await DB.saveVisit(v);
+      visits = await DB.getVisits();
+    }
+    renderAll();
+  }
+  init();
   // Theme
   function toggleTheme(){const l=document.documentElement.classList.toggle('light');localStorage.setItem('tf_theme',l?'light':'dark');document.getElementById('themeToggle').textContent=l?'🌙 Dark':'☀️ Light';}
   document.getElementById('themeToggle').textContent=document.documentElement.classList.contains('light')?'🌙 Dark':'☀️ Light';

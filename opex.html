@@ -466,10 +466,10 @@ const STATUS_BADGE = {active:'b-active',paused:'b-paused',review:'b-review',canc
 const FREQ_LABEL   = {monthly:'Monthly',quarterly:'Quarterly',annual:'Annual',one_time:'One-time'};
 
 // ── SEED DATA (6 months) ──────────────────────────────────
-let items = JSON.parse(localStorage.getItem('tf_opex')||'[]');
+let items = [];
 const curM = curMonthStr();
 
-if (!items.length) {
+function _defaultOpex() {
   const months = [];
   let d = new Date(); d.setDate(1);
   for (let i=5;i>=0;i--){ const t=new Date(d.getFullYear(),d.getMonth()-i,1); months.push(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`); }
@@ -491,20 +491,18 @@ if (!items.length) {
     {name:'Building A Fire System Maintenance',     cat:'Maintenance',        dept:'Facilities', freq:'quarterly', budget:12000, vendor:'Firetech Systems',   code:'6220-FAC', actuals:[12000,0,0,0,12000,0],                 status:'active',  notes:'Annual inspection + quarterly check.'},
   ];
 
-  items = [];
+  const seeded = [];
   templates.forEach(t => {
     months.forEach((m,i) => {
-      items.push({
+      seeded.push({
         id: uid(), name: t.name, category: t.cat, department: t.dept,
         frequency: t.freq, month: m, budget: t.budget, actual: t.actuals[i],
         status: t.status, vendor: t.vendor, code: t.code, notes: t.notes
       });
     });
   });
-  localStorage.setItem('tf_opex', JSON.stringify(items));
+  return seeded;
 }
-
-function save(){ localStorage.setItem('tf_opex', JSON.stringify(items)); }
 
 // ── MONTH FILTER ─────────────────────────────────────────
 function populateMonths(){
@@ -843,7 +841,7 @@ function openModal(id){
   setTimeout(()=>document.getElementById('fName').focus(),80);
 }
 function closeModal(){ document.getElementById('formModal').classList.remove('open'); editingId=null; }
-function submitForm(){
+async function submitForm(){
   const name=document.getElementById('fName').value.trim();
   if(!name){ document.getElementById('fName').focus(); toast('Name is required.','err'); return; }
   const record={
@@ -859,16 +857,22 @@ function submitForm(){
     code:document.getElementById('fCode').value.trim(),
     notes:document.getElementById('fNotes').value.trim(),
   };
-  if(editingId){ const idx=items.findIndex(i=>i.id===editingId); if(idx>=0) items[idx]=record; toast('Item updated.'); }
-  else { items.unshift(record); toast('OpEx item added.'); }
-  save(); closeModal(); renderAll();
+  const { error } = await DB.saveOpex(record);
+  if (error) { toast('Save failed: ' + error.message, 'err'); return; }
+  items = await DB.getOpex();
+  toast(editingId ? 'Item updated.' : 'OpEx item added.');
+  closeModal(); renderAll();
 }
 
 // ── DELETE ────────────────────────────────────────────────
 function confirmDelete(id){
   const item=items.find(i=>i.id===id);
   document.getElementById('delMsg').textContent=`"${item?.name}" will be permanently deleted.`;
-  document.getElementById('delConfirmBtn').onclick=()=>{ items=items.filter(i=>i.id!==id); save(); closeDelModal(); renderAll(); toast('Item deleted.'); };
+  document.getElementById('delConfirmBtn').onclick=async ()=>{
+    await DB.deleteOpex(id);
+    items = await DB.getOpex();
+    closeDelModal(); renderAll(); toast('Item deleted.');
+  };
   document.getElementById('delModal').classList.add('open');
 }
 function closeDelModal(){ document.getElementById('delModal').classList.remove('open'); }
@@ -888,7 +892,15 @@ document.getElementById('formModal').addEventListener('click',e=>{if(e.target===
 document.getElementById('delModal').addEventListener('click',e=>{if(e.target===document.getElementById('delModal'))closeDelModal();});
 
 // ── INIT ──────────────────────────────────────────────────
-renderAll();
+async function init() {
+  items = await DB.getOpex();
+  if (!items.length) {
+    for (const it of _defaultOpex()) await DB.saveOpex(it);
+    items = await DB.getOpex();
+  }
+  renderAll();
+}
+init();
 </script>
 </body>
 </html>
