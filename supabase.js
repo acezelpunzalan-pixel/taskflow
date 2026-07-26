@@ -12,7 +12,18 @@ const SUPABASE_ANON_KEY = _cfg.supabaseAnonKey || 'YOUR_SUPABASE_ANON_KEY';
 const STORAGE_BUCKET    = _cfg.storageBucket   || 'taskflow';
 
 // ── CLIENT ────────────────────────────────────────────────────
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Only initialize the Supabase client when real credentials are present.
+// Placeholder values (or Sheets/local-only mode) must NOT throw here —
+// doing so previously halted this entire script before window.DB (and
+// the Google Sheets adapter below) ever got defined.
+let _sb = null;
+try {
+  if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+} catch (err) {
+  console.warn('[TaskFlow] Supabase client not initialized:', err.message);
+}
 
 // ── HELPERS ───────────────────────────────────────────────────
 function _log(err, ctx) {
