@@ -142,7 +142,7 @@ function _injectSidebarUser(user) {
 
 // ── SIGN OUT ──────────────────────────────────────────────────
 async function authSignOut() {
-  if (typeof _sb !== 'undefined') await _sb.auth.signOut();
+  if (typeof _sb !== 'undefined' && _sb) await _sb.auth.signOut();
   localStorage.removeItem('tf_current_user');
   window.location.replace('login.html');
 }
