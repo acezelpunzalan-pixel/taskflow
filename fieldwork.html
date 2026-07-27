@@ -207,7 +207,7 @@
     <div class="stat-card s2"><div class="stat-label">Pending Review</div><div class="stat-num" id="statPending">0</div></div>
     <div class="stat-card s3"><div class="stat-label">Approved</div><div class="stat-num" id="statApproved">0</div></div>
     <div class="stat-card s4"><div class="stat-label">Disputed</div><div class="stat-num" id="statDisputed">0</div></div>
-    <div class="stat-card s5"><div class="stat-label">Total Invoiced</div><div class="stat-num" id="statAmount">$0</div></div>
+    <div class="stat-card s5"><div class="stat-label">Total Invoiced</div><div class="stat-num" id="statAmount">SAR 0</div></div>
   </div>
 
   <!-- ADD VISIT FORM -->
@@ -237,7 +237,7 @@
         <input type="text" id="newInvoice" placeholder="INV-0001" />
       </div>
       <div class="form-group">
-        <label>Amount ($)</label>
+        <label>Amount (SAR)</label>
         <input type="number" id="newAmount" placeholder="0.00" min="0" step="0.01" />
       </div>
       <div class="form-group">
@@ -273,11 +273,11 @@
 
   <!-- SUMMARY BAR -->
   <div class="summary-bar">
-    <div class="sum-item"><div class="sum-label">Pending Amount</div><div class="sum-val" id="sumPending" style="color:var(--yellow)">$0.00</div></div>
-    <div class="sum-item"><div class="sum-label">Approved Amount</div><div class="sum-val" id="sumApproved" style="color:var(--green)">$0.00</div></div>
-    <div class="sum-item"><div class="sum-label">Disputed Amount</div><div class="sum-val" id="sumDisputed" style="color:var(--red)">$0.00</div></div>
-    <div class="sum-item"><div class="sum-label">Paid Amount</div><div class="sum-val" id="sumPaid" style="color:var(--blue)">$0.00</div></div>
-    <div class="sum-item" style="margin-left:auto"><div class="sum-label">Grand Total</div><div class="sum-val" id="sumTotal" style="color:var(--accent2)">$0.00</div></div>
+    <div class="sum-item"><div class="sum-label">Pending Amount</div><div class="sum-val" id="sumPending" style="color:var(--yellow)">SAR 0.00</div></div>
+    <div class="sum-item"><div class="sum-label">Approved Amount</div><div class="sum-val" id="sumApproved" style="color:var(--green)">SAR 0.00</div></div>
+    <div class="sum-item"><div class="sum-label">Disputed Amount</div><div class="sum-val" id="sumDisputed" style="color:var(--red)">SAR 0.00</div></div>
+    <div class="sum-item"><div class="sum-label">Paid Amount</div><div class="sum-val" id="sumPaid" style="color:var(--blue)">SAR 0.00</div></div>
+    <div class="sum-item" style="margin-left:auto"><div class="sum-label">Grand Total</div><div class="sum-val" id="sumTotal" style="color:var(--accent2)">SAR 0.00</div></div>
   </div>
 
   <!-- TOOLBAR -->
@@ -342,7 +342,7 @@
         <input type="text" id="eInvoice" />
       </div>
       <div class="form-group">
-        <label>Amount ($)</label>
+        <label>Amount (SAR)</label>
         <input type="number" id="eAmount" min="0" step="0.01" />
       </div>
       <div class="form-group">
@@ -464,7 +464,7 @@
   }
 
   function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-  function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function fmt(n) { return 'SAR ' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   async function addVisit() {
