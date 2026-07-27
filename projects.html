@@ -773,7 +773,7 @@ function renderLinkedInvoices(projId) {
     <tbody>${rows.map(i=>`<tr>
       <td>${esc(i.invNum||i.invoice_num||'—')}</td>
       <td>${esc(i.vendor||'—')}</td>
-      <td>$${Number(i.amount||0).toLocaleString()}</td>
+      <td>SAR ${Number(i.amount||0).toLocaleString()}</td>
       <td><span class="badge s-${(i.status||'draft').toLowerCase()}">${esc(i.status||'Draft')}</span></td>
       <td>${fmt(i.dueDate||i.due_date)}</td>
       <td><button class="act-unlink" onclick="unlinkInvoice('${i.id}')">Unlink</button></td>
@@ -794,7 +794,7 @@ function renderLinkedVisits(projId) {
       <td>${esc(v.vendor||'—')}</td>
       <td>${esc(v.site||'—')}</td>
       <td>${fmt(v.date)}</td>
-      <td>$${Number(v.amount||0).toLocaleString()}</td>
+      <td>SAR ${Number(v.amount||0).toLocaleString()}</td>
       <td><span class="badge s-${(v.status||'pending').toLowerCase()}">${esc(v.status||'Pending')}</span></td>
       <td><button class="act-unlink" onclick="unlinkVisit('${v.id}')">Unlink</button></td>
     </tr>`).join('')}</tbody></table>`;
@@ -843,7 +843,7 @@ function renderInvPicker() {
       <div class="picker-item-info">
         <div class="picker-item-title">${esc(i.invNum||i.invoice_num||'—')} — ${esc(i.vendor||'—')}</div>
         <div class="picker-item-meta">
-          <span>$${Number(i.amount||0).toLocaleString()}</span>
+          <span>SAR ${Number(i.amount||0).toLocaleString()}</span>
           <span>${esc(i.status||'Draft')}</span>
           <span>Due ${fmt(i.dueDate||i.due_date)}</span>
         </div>
@@ -900,7 +900,7 @@ function renderVisPicker() {
         <div class="picker-item-title">${esc(v.vendor||'—')} @ ${esc(v.site||'—')}</div>
         <div class="picker-item-meta">
           <span>${fmt(v.date)}</span>
-          <span>$${Number(v.amount||0).toLocaleString()}</span>
+          <span>SAR ${Number(v.amount||0).toLocaleString()}</span>
           <span>${esc(v.status||'Pending')}</span>
         </div>
       </div>
