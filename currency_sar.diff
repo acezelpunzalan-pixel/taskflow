@@ -1,0 +1,336 @@
+diff --git a/admin.html b/admin.html
+index a156bff..45c1fd8 100644
+--- a/admin.html
++++ b/admin.html
+@@ -384,7 +384,7 @@
+       <div class="sc c2"><div class="sc-label">Pending</div><div class="sc-val" id="i-stPending">0</div></div>
+       <div class="sc c3"><div class="sc-label">Paid</div><div class="sc-val" id="i-stPaid">0</div></div>
+       <div class="sc c4"><div class="sc-label">Overdue</div><div class="sc-val" id="i-stOverdue">0</div></div>
+-      <div class="sc c5"><div class="sc-label">Total Amount</div><div class="sc-val" id="i-stAmount">$0</div></div>
++      <div class="sc c5"><div class="sc-label">Total Amount</div><div class="sc-val" id="i-stAmount">SAR 0</div></div>
+     </div>
+     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+       <div style="font-size:0.88rem;color:var(--muted)">Invoice records are managed in the <a href="invoices.html" style="color:var(--accent2)">Invoices page</a>. This view shows a summary by vendor.</div>
+@@ -547,7 +547,7 @@
+   function uid()  { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+   function today(){ return new Date().toISOString().split('T')[0]; }
+   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+-  function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
++  function fmt(n) { return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+ 
+   let toastTimer;
+   function toast(msg, type='ok') {
+diff --git a/admin_3.html b/admin_3.html
+index fb255f9..a19a6e6 100644
+--- a/admin_3.html
++++ b/admin_3.html
+@@ -385,7 +385,7 @@
+       <div class="sc c2"><div class="sc-label">Pending</div><div class="sc-val" id="i-stPending">0</div></div>
+       <div class="sc c3"><div class="sc-label">Paid</div><div class="sc-val" id="i-stPaid">0</div></div>
+       <div class="sc c4"><div class="sc-label">Overdue</div><div class="sc-val" id="i-stOverdue">0</div></div>
+-      <div class="sc c5"><div class="sc-label">Total Amount</div><div class="sc-val" id="i-stAmount">$0</div></div>
++      <div class="sc c5"><div class="sc-label">Total Amount</div><div class="sc-val" id="i-stAmount">SAR 0</div></div>
+     </div>
+     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+       <div style="font-size:0.88rem;color:var(--muted)">Invoice records are managed in the <a href="invoices.html" style="color:var(--accent2)">Invoices page</a>. This view shows a summary by vendor.</div>
+@@ -567,7 +567,7 @@
+   function uid()  { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+   function today(){ return new Date().toISOString().split('T')[0]; }
+   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+-  function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
++  function fmt(n) { return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+ 
+   let toastTimer;
+   function toast(msg, type='ok') {
+diff --git a/branches.html b/branches.html
+index 88a4ba5..a078bd8 100644
+--- a/branches.html
++++ b/branches.html
+@@ -213,7 +213,7 @@
+ <script>
+ // ── HELPERS ───────────────────────────────────────────────────────
+ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+-function fmt(n){ return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
++function fmt(n){ return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+ 
+ // ── DATA ──────────────────────────────────────────────────────────
+ async function getSites()    { return await DB.getSites(); }
+diff --git a/capex.html b/capex.html
+index 165f944..a652ced 100644
+--- a/capex.html
++++ b/capex.html
+@@ -181,9 +181,9 @@
+ 
+   <!-- STATS -->
+   <div class="stats">
+-    <div class="sc c0"><div class="sc-label">Total Budget</div><div class="sc-val" id="stBudget">$0</div></div>
+-    <div class="sc c1"><div class="sc-label">Total Spent</div><div class="sc-val" id="stSpent">$0</div></div>
+-    <div class="sc c2"><div class="sc-label">Remaining</div><div class="sc-val" id="stRemaining">$0</div></div>
++    <div class="sc c0"><div class="sc-label">Total Budget</div><div class="sc-val" id="stBudget">SAR 0</div></div>
++    <div class="sc c1"><div class="sc-label">Total Spent</div><div class="sc-val" id="stSpent">SAR 0</div></div>
++    <div class="sc c2"><div class="sc-label">Remaining</div><div class="sc-val" id="stRemaining">SAR 0</div></div>
+     <div class="sc c3"><div class="sc-label">Utilization</div><div class="sc-val" id="stUtil">0%</div></div>
+     <div class="sc c4"><div class="sc-label">Items</div><div class="sc-val" id="stItems">0</div></div>
+     <div class="sc c5"><div class="sc-label">Over Budget</div><div class="sc-val" id="stOver">0</div></div>
+@@ -262,11 +262,11 @@
+         <input type="number" id="fYear" min="2020" max="2040" placeholder="2026">
+       </div>
+       <div class="fg">
+-        <label>Budget ($)</label>
++        <label>Budget (SAR)</label>
+         <input type="number" id="fBudget" min="0" step="0.01" placeholder="0.00">
+       </div>
+       <div class="fg">
+-        <label>Spent ($)</label>
++        <label>Spent (SAR)</label>
+         <input type="number" id="fSpent" min="0" step="0.01" placeholder="0.00">
+       </div>
+       <div class="fg">
+@@ -321,8 +321,8 @@
+ // ── UTILS ──────────────────────────────────────────────────
+ function uid()  { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+ function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+-function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+-function fmtD(n){ return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
++function fmt(n) { return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
++function fmtD(n){ return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+ function toast(msg,type='ok'){
+   const el=document.getElementById('toast');
+   el.textContent=msg; el.className=`toast show ${type}`;
+diff --git a/fieldwork.html b/fieldwork.html
+index a92f821..93878e1 100644
+--- a/fieldwork.html
++++ b/fieldwork.html
+@@ -207,7 +207,7 @@
+     <div class="stat-card s2"><div class="stat-label">Pending Review</div><div class="stat-num" id="statPending">0</div></div>
+     <div class="stat-card s3"><div class="stat-label">Approved</div><div class="stat-num" id="statApproved">0</div></div>
+     <div class="stat-card s4"><div class="stat-label">Disputed</div><div class="stat-num" id="statDisputed">0</div></div>
+-    <div class="stat-card s5"><div class="stat-label">Total Invoiced</div><div class="stat-num" id="statAmount">$0</div></div>
++    <div class="stat-card s5"><div class="stat-label">Total Invoiced</div><div class="stat-num" id="statAmount">SAR 0</div></div>
+   </div>
+ 
+   <!-- ADD VISIT FORM -->
+@@ -237,7 +237,7 @@
+         <input type="text" id="newInvoice" placeholder="INV-0001" />
+       </div>
+       <div class="form-group">
+-        <label>Amount ($)</label>
++        <label>Amount (SAR)</label>
+         <input type="number" id="newAmount" placeholder="0.00" min="0" step="0.01" />
+       </div>
+       <div class="form-group">
+@@ -273,11 +273,11 @@
+ 
+   <!-- SUMMARY BAR -->
+   <div class="summary-bar">
+-    <div class="sum-item"><div class="sum-label">Pending Amount</div><div class="sum-val" id="sumPending" style="color:var(--yellow)">$0.00</div></div>
+-    <div class="sum-item"><div class="sum-label">Approved Amount</div><div class="sum-val" id="sumApproved" style="color:var(--green)">$0.00</div></div>
+-    <div class="sum-item"><div class="sum-label">Disputed Amount</div><div class="sum-val" id="sumDisputed" style="color:var(--red)">$0.00</div></div>
+-    <div class="sum-item"><div class="sum-label">Paid Amount</div><div class="sum-val" id="sumPaid" style="color:var(--blue)">$0.00</div></div>
+-    <div class="sum-item" style="margin-left:auto"><div class="sum-label">Grand Total</div><div class="sum-val" id="sumTotal" style="color:var(--accent2)">$0.00</div></div>
++    <div class="sum-item"><div class="sum-label">Pending Amount</div><div class="sum-val" id="sumPending" style="color:var(--yellow)">SAR 0.00</div></div>
++    <div class="sum-item"><div class="sum-label">Approved Amount</div><div class="sum-val" id="sumApproved" style="color:var(--green)">SAR 0.00</div></div>
++    <div class="sum-item"><div class="sum-label">Disputed Amount</div><div class="sum-val" id="sumDisputed" style="color:var(--red)">SAR 0.00</div></div>
++    <div class="sum-item"><div class="sum-label">Paid Amount</div><div class="sum-val" id="sumPaid" style="color:var(--blue)">SAR 0.00</div></div>
++    <div class="sum-item" style="margin-left:auto"><div class="sum-label">Grand Total</div><div class="sum-val" id="sumTotal" style="color:var(--accent2)">SAR 0.00</div></div>
+   </div>
+ 
+   <!-- TOOLBAR -->
+@@ -342,7 +342,7 @@
+         <input type="text" id="eInvoice" />
+       </div>
+       <div class="form-group">
+-        <label>Amount ($)</label>
++        <label>Amount (SAR)</label>
+         <input type="number" id="eAmount" min="0" step="0.01" />
+       </div>
+       <div class="form-group">
+@@ -464,7 +464,7 @@
+   }
+ 
+   function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+-  function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
++  function fmt(n) { return 'SAR ' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+ 
+   async function addVisit() {
+diff --git a/index.html b/index.html
+index 2ff5666..f80bd01 100644
+--- a/index.html
++++ b/index.html
+@@ -836,7 +836,7 @@
+   async function buildOpsSummary() {
+     const todayStr = new Date().toISOString().split('T')[0];
+     const ym = todayStr.slice(0, 7); // 'YYYY-MM'
+-    function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
++    function fmt(n) { return 'SAR ' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+     function cc(v, warn, danger) { return v >= danger ? 'c-red' : v >= warn ? 'c-yellow' : 'c-green'; }
+     function pctCls(p, warn, danger) { return p >= danger ? 'c-red' : p >= warn ? 'c-yellow' : 'c-green'; }
+ 
+diff --git a/invoices.html b/invoices.html
+index 95a1949..b7e32e9 100644
+--- a/invoices.html
++++ b/invoices.html
+@@ -307,8 +307,8 @@
+     <div class="sc c1"><div class="sc-label">Pending Approval</div><div class="sc-val" id="stPending">0</div></div>
+     <div class="sc c2"><div class="sc-label">Approved</div><div class="sc-val" id="stApproved">0</div></div>
+     <div class="sc c3"><div class="sc-label">Overdue</div><div class="sc-val" id="stOverdue">0</div></div>
+-    <div class="sc c4"><div class="sc-label">Unpaid Balance</div><div class="sc-val" id="stUnpaid">$0</div></div>
+-    <div class="sc c5"><div class="sc-label">Total Paid</div><div class="sc-val" id="stPaid">$0</div></div>
++    <div class="sc c4"><div class="sc-label">Unpaid Balance</div><div class="sc-val" id="stUnpaid">SAR 0</div></div>
++    <div class="sc c5"><div class="sc-label">Total Paid</div><div class="sc-val" id="stPaid">SAR 0</div></div>
+   </div>
+ 
+   <!-- AGING CHART -->
+@@ -342,8 +342,8 @@
+     </div>
+     <div class="saas-kpis">
+       <div class="saas-kpi"><div class="saas-kpi-label">SaaS Vendors</div><div class="saas-kpi-val" id="skVendors" style="color:var(--accent2)">0</div></div>
+-      <div class="saas-kpi"><div class="saas-kpi-label">Period Spend</div><div class="saas-kpi-val" id="skSpend" style="color:var(--green)">$0</div></div>
+-      <div class="saas-kpi"><div class="saas-kpi-label">Avg / Month</div><div class="saas-kpi-val" id="skAvg" style="color:var(--blue)">$0</div></div>
++      <div class="saas-kpi"><div class="saas-kpi-label">Period Spend</div><div class="saas-kpi-val" id="skSpend" style="color:var(--green)">SAR 0</div></div>
++      <div class="saas-kpi"><div class="saas-kpi-label">Avg / Month</div><div class="saas-kpi-val" id="skAvg" style="color:var(--blue)">SAR 0</div></div>
+       <div class="saas-kpi"><div class="saas-kpi-label">Week Coverage</div><div class="saas-kpi-val" id="skCoverage" style="color:var(--yellow)">0%</div></div>
+       <div class="saas-kpi"><div class="saas-kpi-label">Week Gaps</div><div class="saas-kpi-val" id="skGaps" style="color:var(--red)">0</div></div>
+     </div>
+@@ -380,7 +380,7 @@
+         <input type="text" id="nPO" placeholder="PO-0001" />
+       </div>
+       <div class="fg">
+-        <label>Amount ($)</label>
++        <label>Amount (SAR)</label>
+         <input type="number" id="nAmount" placeholder="0.00" min="0" step="0.01" />
+       </div>
+       <div class="fg">
+@@ -519,7 +519,7 @@
+         <input type="text" id="ePO" />
+       </div>
+       <div class="fg">
+-        <label>Amount ($)</label>
++        <label>Amount (SAR)</label>
+         <input type="number" id="eAmount" min="0" step="0.01" />
+       </div>
+       <div class="fg">
+@@ -748,7 +748,7 @@
+     const invoices = [
+       mk('INV-2024-001','CoolTech Services','HVAC preventive maintenance','Field Work','PO-101',450.00,past30,dateMinus(t,5),'paid',[{type:'comment',text:'Received invoice.',date:past30},{type:'approved',text:'Looks good, approved.',date:dateMinus(t,20)},{type:'paid',text:'Payment processed.',date:dateMinus(t,5)}],'',true,true),
+       mk('INV-2024-002','Volt Masters Inc.','Electrical panel inspection','Field Work','PO-102',320.00,past10,due7,'submitted',[{type:'comment',text:'Invoice submitted for review.',date:past10}],'',true,false),
+-      mk('INV-2024-003','AquaFix Co.','Plumbing repair – leak fix','Maintenance','PO-103',210.50,past30,dateMinus(t,15),'rejected',[{type:'comment',text:'Amount higher than quoted.',date:past30},{type:'rejected',text:'Disputed: quoted was $150, invoiced $210.50.',date:dateMinus(t,25)}],'',false,false),
++      mk('INV-2024-003','AquaFix Co.','Plumbing repair – leak fix','Maintenance','PO-103',210.50,past30,dateMinus(t,15),'rejected',[{type:'comment',text:'Amount higher than quoted.',date:past30},{type:'rejected',text:'Disputed: quoted was SAR 150, invoiced SAR 210.50.',date:dateMinus(t,25)}],'',false,false),
+       mk('INV-2024-004','SafeGuard Systems','Fire suppression annual check','Field Work','PO-104',580.00,dateMinus(t,60),dateMinus(t,30),'paid',[{type:'approved',text:'Auto-approved per contract.',date:dateMinus(t,55)},{type:'paid',text:'Paid via bank transfer.',date:dateMinus(t,30)}],'',true,true),
+       mk('INV-2024-005','Volt Masters Inc.','Generator service & fuel check','Maintenance','PO-105',195.00,past5,due14,'approved',[{type:'approved',text:'Approved — within budget.',date:past5}],'',true,false),
+       mk('INV-2024-006','CleanPro Services','Monthly janitorial contract','Supply','PO-106',750.00,dateMinus(t,45),dateMinus(t,15),'approved',[{type:'approved',text:'Recurring contract, approved.',date:dateMinus(t,44)}],'',true,true),
+@@ -777,7 +777,7 @@
+     return { id: uid(), invNum, vendor, desc, category, po, amount, invDate, dueDate, status, trail: trail||[], file: file||'', attachment_path:'', attachment_name:'', gr: !!gr, booked: !!booked, department: department||'', created_by: createdBy||'', created: Date.now() };
+   }
+   function uid() { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+-  function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
++  function fmt(n) { return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+   function datePlus(d,n) { const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().split('T')[0]; }
+   function dateMinus(d,n) { return datePlus(d,-n); }
+@@ -1277,7 +1277,7 @@
+     months.forEach(({ key }) => {
+       const mSpend = saasActive.filter(i => i.invDate && i.invDate.startsWith(key)).reduce((s,i)=>s+i.amount,0);
+       const isFuture = key > nowKey;
+-      html += `<td class="cov-month-total" style="${isFuture?'color:var(--border)':''}">${isFuture||mSpend===0?'—':fmt(mSpend).replace('$','')}</td>`;
++      html += `<td class="cov-month-total" style="${isFuture?'color:var(--border)':''}">${isFuture||mSpend===0?'—':fmt(mSpend).replace('SAR ','')}</td>`;
+     });
+     html += `<td class="cov-row-total">${fmt(periodSpend)}</td><td></td></tr>`;
+ 
+diff --git a/opex.html b/opex.html
+index 1ac9064..1dabcb2 100644
+--- a/opex.html
++++ b/opex.html
+@@ -241,22 +241,22 @@
+   <div class="stats">
+     <div class="sc c0">
+       <div class="sc-label">Monthly Budget</div>
+-      <div class="sc-val" id="stBudget">$0</div>
++      <div class="sc-val" id="stBudget">SAR 0</div>
+       <div class="sc-sub" id="stBudgetSub">—</div>
+     </div>
+     <div class="sc c1">
+       <div class="sc-label">Monthly Actual</div>
+-      <div class="sc-val" id="stActual">$0</div>
++      <div class="sc-val" id="stActual">SAR 0</div>
+       <div class="sc-delta neu" id="stActualDelta">—</div>
+     </div>
+     <div class="sc c2">
+       <div class="sc-label">Variance</div>
+-      <div class="sc-val" id="stVariance">$0</div>
++      <div class="sc-val" id="stVariance">SAR 0</div>
+       <div class="sc-sub" id="stVarSub">vs budget</div>
+     </div>
+     <div class="sc c3">
+       <div class="sc-label">YTD Spend</div>
+-      <div class="sc-val" id="stYTD">$0</div>
++      <div class="sc-val" id="stYTD">SAR 0</div>
+       <div class="sc-sub" id="stYTDSub">—</div>
+     </div>
+     <div class="sc c4">
+@@ -396,11 +396,11 @@
+         <input type="month" id="fMonth">
+       </div>
+       <div class="fg">
+-        <label>Budget ($)</label>
++        <label>Budget (SAR)</label>
+         <input type="number" id="fBudget" min="0" step="0.01" placeholder="0.00">
+       </div>
+       <div class="fg">
+-        <label>Actual ($)</label>
++        <label>Actual (SAR)</label>
+         <input type="number" id="fActual" min="0" step="0.01" placeholder="0.00">
+       </div>
+       <div class="fg">
+@@ -448,8 +448,8 @@
+ // ── UTILS ──────────────────────────────────────────────────
+ function uid()  { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+ function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+-function fmt(n) { const v=Math.abs(Number(n||0)); return '$'+(v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v.toLocaleString('en-US',{maximumFractionDigits:0})); }
+-function fmtFull(n){ return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
++function fmt(n) { const v=Math.abs(Number(n||0)); return 'SAR '+(v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v.toLocaleString('en-US',{maximumFractionDigits:0})); }
++function fmtFull(n){ return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+ function curMonthStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+ function monthLabel(s,short=false){ if(!s)return '—'; const [y,m]=s.split('-'); const n=['January','February','March','April','May','June','July','August','September','October','November','December']; const ns=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return short?ns[+m-1]:`${n[+m-1]} ${y}`; }
+ function toast(msg,type='ok'){ const el=document.getElementById('toast'); el.textContent=msg; el.className=`toast show ${type}`; clearTimeout(toast._t); toast._t=setTimeout(()=>el.className='toast',2800); }
+diff --git a/projects.html b/projects.html
+index 97a8a3e..5a2701f 100644
+--- a/projects.html
++++ b/projects.html
+@@ -773,7 +773,7 @@ function renderLinkedInvoices(projId) {
+     <tbody>${rows.map(i=>`<tr>
+       <td>${esc(i.invNum||i.invoice_num||'—')}</td>
+       <td>${esc(i.vendor||'—')}</td>
+-      <td>$${Number(i.amount||0).toLocaleString()}</td>
++      <td>SAR ${Number(i.amount||0).toLocaleString()}</td>
+       <td><span class="badge s-${(i.status||'draft').toLowerCase()}">${esc(i.status||'Draft')}</span></td>
+       <td>${fmt(i.dueDate||i.due_date)}</td>
+       <td><button class="act-unlink" onclick="unlinkInvoice('${i.id}')">Unlink</button></td>
+@@ -794,7 +794,7 @@ function renderLinkedVisits(projId) {
+       <td>${esc(v.vendor||'—')}</td>
+       <td>${esc(v.site||'—')}</td>
+       <td>${fmt(v.date)}</td>
+-      <td>$${Number(v.amount||0).toLocaleString()}</td>
++      <td>SAR ${Number(v.amount||0).toLocaleString()}</td>
+       <td><span class="badge s-${(v.status||'pending').toLowerCase()}">${esc(v.status||'Pending')}</span></td>
+       <td><button class="act-unlink" onclick="unlinkVisit('${v.id}')">Unlink</button></td>
+     </tr>`).join('')}</tbody></table>`;
+@@ -843,7 +843,7 @@ function renderInvPicker() {
+       <div class="picker-item-info">
+         <div class="picker-item-title">${esc(i.invNum||i.invoice_num||'—')} — ${esc(i.vendor||'—')}</div>
+         <div class="picker-item-meta">
+-          <span>$${Number(i.amount||0).toLocaleString()}</span>
++          <span>SAR ${Number(i.amount||0).toLocaleString()}</span>
+           <span>${esc(i.status||'Draft')}</span>
+           <span>Due ${fmt(i.dueDate||i.due_date)}</span>
+         </div>
+@@ -900,7 +900,7 @@ function renderVisPicker() {
+         <div class="picker-item-title">${esc(v.vendor||'—')} @ ${esc(v.site||'—')}</div>
+         <div class="picker-item-meta">
+           <span>${fmt(v.date)}</span>
+-          <span>$${Number(v.amount||0).toLocaleString()}</span>
++          <span>SAR ${Number(v.amount||0).toLocaleString()}</span>
+           <span>${esc(v.status||'Pending')}</span>
+         </div>
+       </div>
