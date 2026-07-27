@@ -836,7 +836,7 @@
   async function buildOpsSummary() {
     const todayStr = new Date().toISOString().split('T')[0];
     const ym = todayStr.slice(0, 7); // 'YYYY-MM'
-    function fmt(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+    function fmt(n) { return 'SAR ' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
     function cc(v, warn, danger) { return v >= danger ? 'c-red' : v >= warn ? 'c-yellow' : 'c-green'; }
     function pctCls(p, warn, danger) { return p >= danger ? 'c-red' : p >= warn ? 'c-yellow' : 'c-green'; }
 
