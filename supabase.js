@@ -96,7 +96,7 @@ window.DB = {
   },
 
   async getVendorNames() {
-    const { data, error } = await _sb.from('vendors').select('name').eq('status', 'Active').order('name');
+    const { data, error } = await _sb.from('vendors').select('name').eq('status', 'active').order('name');
     _log(error, 'getVendorNames');
     return data ? data.map(r => r.name) : [];
   },
@@ -430,7 +430,7 @@ if (!DB.isConfigured()) {
   DB.getVendors     = async () => _lsGet('tf_vendors').sort((a,b) => (a.name||'').localeCompare(b.name||''));
   DB.saveVendor     = async v  => { if (!v.id) v.id = _lsUid(); _lsSave('tf_vendors', _upsert(_lsGet('tf_vendors'), v)); return _ok(v); };
   DB.deleteVendor   = async id => { _lsSave('tf_vendors', _lsGet('tf_vendors').filter(r => r.id !== id)); return _err0(); };
-  DB.getVendorNames = async () => _lsGet('tf_vendors').filter(r => r.status === 'Active').map(r => r.name).sort();
+  DB.getVendorNames = async () => _lsGet('tf_vendors').filter(r => r.status === 'active').map(r => r.name).sort();
 
   // Roles
   DB.getRoles    = async () => _lsGet('tf_roles').sort((a,b) => (a.name||'').localeCompare(b.name||''));
@@ -524,7 +524,7 @@ if (!DB.isConfigured()) {
   DB.getVendors     = async () => (await _gsGet('Vendors')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   DB.saveVendor     = async v  => _gsUpsert('Vendors', v);
   DB.deleteVendor   = async id => _gsDel('Vendors', id);
-  DB.getVendorNames = async () => (await _gsGet('Vendors')).filter(r => r.status === 'Active').map(r => r.name).sort();
+  DB.getVendorNames = async () => (await _gsGet('Vendors')).filter(r => r.status === 'active').map(r => r.name).sort();
 
   DB.getRoles    = async () => (await _gsGet('Roles')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
   DB.saveRole    = async r  => _gsUpsert('Roles', r);
