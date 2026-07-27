@@ -241,22 +241,22 @@
   <div class="stats">
     <div class="sc c0">
       <div class="sc-label">Monthly Budget</div>
-      <div class="sc-val" id="stBudget">$0</div>
+      <div class="sc-val" id="stBudget">SAR 0</div>
       <div class="sc-sub" id="stBudgetSub">—</div>
     </div>
     <div class="sc c1">
       <div class="sc-label">Monthly Actual</div>
-      <div class="sc-val" id="stActual">$0</div>
+      <div class="sc-val" id="stActual">SAR 0</div>
       <div class="sc-delta neu" id="stActualDelta">—</div>
     </div>
     <div class="sc c2">
       <div class="sc-label">Variance</div>
-      <div class="sc-val" id="stVariance">$0</div>
+      <div class="sc-val" id="stVariance">SAR 0</div>
       <div class="sc-sub" id="stVarSub">vs budget</div>
     </div>
     <div class="sc c3">
       <div class="sc-label">YTD Spend</div>
-      <div class="sc-val" id="stYTD">$0</div>
+      <div class="sc-val" id="stYTD">SAR 0</div>
       <div class="sc-sub" id="stYTDSub">—</div>
     </div>
     <div class="sc c4">
@@ -396,11 +396,11 @@
         <input type="month" id="fMonth">
       </div>
       <div class="fg">
-        <label>Budget ($)</label>
+        <label>Budget (SAR)</label>
         <input type="number" id="fBudget" min="0" step="0.01" placeholder="0.00">
       </div>
       <div class="fg">
-        <label>Actual ($)</label>
+        <label>Actual (SAR)</label>
         <input type="number" id="fActual" min="0" step="0.01" placeholder="0.00">
       </div>
       <div class="fg">
@@ -448,8 +448,8 @@
 // ── UTILS ──────────────────────────────────────────────────
 function uid()  { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fmt(n) { const v=Math.abs(Number(n||0)); return '$'+(v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v.toLocaleString('en-US',{maximumFractionDigits:0})); }
-function fmtFull(n){ return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmt(n) { const v=Math.abs(Number(n||0)); return 'SAR '+(v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v.toLocaleString('en-US',{maximumFractionDigits:0})); }
+function fmtFull(n){ return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function curMonthStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function monthLabel(s,short=false){ if(!s)return '—'; const [y,m]=s.split('-'); const n=['January','February','March','April','May','June','July','August','September','October','November','December']; const ns=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return short?ns[+m-1]:`${n[+m-1]} ${y}`; }
 function toast(msg,type='ok'){ const el=document.getElementById('toast'); el.textContent=msg; el.className=`toast show ${type}`; clearTimeout(toast._t); toast._t=setTimeout(()=>el.className='toast',2800); }
