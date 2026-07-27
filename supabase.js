@@ -1,590 +1,1023 @@
-// ============================================================
-// supabase.js — TaskFlow Data Layer
-// Loaded by every page via <script src="supabase.js">
-// Requires Supabase JS v2 CDN loaded BEFORE this file
-// ============================================================
-
-// ── CONFIG — reads from config.js (window.TASKFLOW_CONFIG) ──────────────
-// Do NOT edit credentials here. Edit config.js instead.
-const _cfg = window.TASKFLOW_CONFIG || {};
-const SUPABASE_URL      = _cfg.supabaseUrl     || 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = _cfg.supabaseAnonKey || 'YOUR_SUPABASE_ANON_KEY';
-const STORAGE_BUCKET    = _cfg.storageBucket   || 'taskflow';
-
-// ── CLIENT ────────────────────────────────────────────────────
-// Only initialize the Supabase client when real credentials are present.
-// Placeholder values (or Sheets/local-only mode) must NOT throw here —
-// doing so previously halted this entire script before window.DB (and
-// the Google Sheets adapter below) ever got defined.
-let _sb = null;
-try {
-  if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
-    _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projects — TaskFlow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #222535; --border: #2e3148;
+    --accent: #6c63ff; --accent2: #a78bfa; --text: #e2e8f0; --muted: #8892a4;
+    --green: #22c55e; --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6; --orange: #f97316;
+    --r: 10px;
   }
-} catch (err) {
-  console.warn('[TaskFlow] Supabase client not initialized:', err.message);
-}
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
 
-// ── HELPERS ───────────────────────────────────────────────────
-function _log(err, ctx) {
-  if (err) console.error(`[DB] ${ctx}:`, err.message);
-}
+  /* NAV SIDEBAR */
+  .sidebar { width: 196px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; padding: 20px 12px 16px; }
+  .logo { font-size: 1.15rem; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; padding: 4px 8px 18px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .logo span { color: var(--muted); font-weight: 400; }
+  .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .sidebar-nav a { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 0.84rem; font-weight: 500; transition: all 0.15s; white-space: nowrap; }
+  .sidebar-nav a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar-nav a.active { background: rgba(108,99,255,0.14); color: var(--accent2); font-weight: 600; }
+  .nav-group-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--border); padding: 10px 10px 3px; margin-top: 2px; pointer-events: none; }
+  .theme-toggle { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 0.81rem; color: var(--muted); transition: all 0.15s; font-family: inherit; line-height: 1; width: 100%; text-align: left; margin-top: auto; }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent2); background: rgba(108,99,255,0.08); }
 
-function _toast(msg, type = 'error') {
+  /* MAIN */
+  .main-wrap { margin-left: 196px; flex: 1; min-width: 0; }
+  main { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+  /* PAGE HEADER */
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+  .page-title { font-size: 1.4rem; font-weight: 700; }
+  .page-sub { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .sc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; position: relative; overflow: hidden; }
+  .sc::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .sc.c0::before{background:var(--accent)} .sc.c1::before{background:var(--green)} .sc.c2::before{background:var(--blue)} .sc.c3::before{background:var(--yellow)} .sc.c4::before{background:var(--green)} .sc.c5::before{background:var(--red)}
+  .sc-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .sc-val { font-size: 1.7rem; font-weight: 700; }
+  .sc.c0 .sc-val{color:var(--accent2)} .sc.c1 .sc-val{color:var(--green)} .sc.c2 .sc-val{color:var(--blue)} .sc.c3 .sc-val{color:var(--yellow)} .sc.c4 .sc-val{color:var(--green)} .sc.c5 .sc-val{color:var(--red)}
+
+  /* TOOLBAR */
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .search-in { background: var(--surface); border: 1px solid var(--border); border-radius: 99px; color: var(--text); padding: 7px 16px; font-size: 0.83rem; outline: none; flex: 1; min-width: 150px; }
+  .search-in:focus { border-color: var(--accent); }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 99px; padding: 5px 13px; font-size: 0.79rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* BUTTONS */
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.86rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; font-family: inherit; display: inline-flex; align-items: center; gap: 7px; }
+  .btn:hover { background: #7c74ff; } .btn:active { transform: scale(0.97); }
+  .btn-sm { padding: 6px 12px; font-size: 0.79rem; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { color: var(--text); background: var(--surface2); border-color: var(--accent); }
+  .btn-danger { background: var(--red); }
+  .btn-danger:hover { background: #dc2626; }
+
+  /* PROJECT CARDS */
+  .proj-list { display: flex; flex-direction: column; gap: 10px; }
+  .proj-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 16px 18px 14px 22px; cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .proj-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: var(--r) 0 0 var(--r); }
+  .proj-card[data-priority="Critical"]::before { background: var(--red); }
+  .proj-card[data-priority="High"]::before     { background: var(--orange); }
+  .proj-card[data-priority="Medium"]::before   { background: var(--yellow); }
+  .proj-card[data-priority="Low"]::before      { background: var(--muted); }
+  .proj-card:hover { border-color: var(--accent); transform: translateX(2px); }
+  .proj-card.done { opacity: 0.55; }
+
+  .proj-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .proj-name { font-size: 0.95rem; font-weight: 700; }
+  .proj-meta { font-size: 0.75rem; color: var(--muted); margin-top: 3px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .proj-badges { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+
+  /* PROGRESS BAR */
+  .prog-bar-bg { background: var(--surface2); border-radius: 99px; height: 5px; overflow: hidden; margin-top: 10px; }
+  .prog-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+  .prog-footer { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 5px; }
+
+  /* ══════════════════════════════════════════════════════════
+     DETAIL VIEW
+  ══════════════════════════════════════════════════════════ */
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.83rem; cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; margin-bottom: 18px; transition: color 0.15s; }
+  .back-btn:hover { color: var(--accent2); }
+
+  /* DETAIL HEADER */
+  .detail-header {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 24px 28px; margin-bottom: 20px; position: relative; overflow: hidden;
+  }
+  .detail-header::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+  .detail-header[data-priority="Critical"]::before { background: var(--red); }
+  .detail-header[data-priority="High"]::before     { background: var(--orange); }
+  .detail-header[data-priority="Medium"]::before   { background: var(--yellow); }
+  .detail-header[data-priority="Low"]::before      { background: var(--muted); }
+  .detail-header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .detail-title { font-size: 1.4rem; font-weight: 800; padding-left: 8px; }
+  .detail-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .detail-meta-row { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); padding-left: 8px; margin-bottom: 14px; }
+  .detail-meta-row span { display: flex; align-items: center; gap: 5px; }
+  .detail-meta-row a { color: var(--accent2); text-decoration: none; }
+  .detail-meta-row a:hover { text-decoration: underline; }
+  .detail-prog-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 5px; padding-left: 8px; }
+  .detail-prog-bg { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; margin: 0 0 4px 8px; }
+  .detail-prog-fill { height: 100%; border-radius: 99px; transition: width 0.5s; }
+  .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* TABS */
+  .tab-bar { display: flex; gap: 3px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 5px; margin-bottom: 20px; }
+  .tab-btn { flex: 1; padding: 9px 12px; border-radius: 7px; border: none; background: none; color: var(--muted); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .tab-btn:hover { color: var(--accent2); background: rgba(108,99,255,0.07); }
+  .tab-btn.active { background: var(--accent); color: #fff; }
+  .tab-count { font-size: 0.69rem; padding: 1px 6px; border-radius: 99px; background: rgba(255,255,255,0.2); }
+  .tab-btn:not(.active) .tab-count { background: var(--surface2); color: var(--muted); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* OVERVIEW TAB */
+  .overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .overview-grid { grid-template-columns: 1fr; } }
+  .info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; }
+  .info-card h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 14px; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(46,49,72,0.4); font-size: 0.83rem; }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .label { color: var(--muted); }
+  .info-row .val { font-weight: 500; text-align: right; }
+  .notes-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; }
+  .notes-card h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+  .notes-text { font-size: 0.85rem; line-height: 1.65; color: var(--text); white-space: pre-wrap; }
+  .notes-empty { color: var(--muted); font-size: 0.83rem; font-style: italic; }
+
+  /* PROGRESS INLINE EDITOR */
+  .prog-editor { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; }
+  .prog-editor h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 12px; }
+  .prog-slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  input[type=range] { flex: 1; accent-color: var(--accent); cursor: pointer; height: 6px; }
+  .prog-pct-badge { font-size: 1rem; font-weight: 800; color: var(--accent2); min-width: 44px; text-align: right; }
+
+  /* LINKED RECORDS TABLE */
+  .linked-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+  .linked-section-hdr { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .linked-section-hdr h3 { font-size: 0.88rem; font-weight: 700; }
+  .linked-table { width: 100%; border-collapse: collapse; }
+  .linked-table th { font-size: 0.69rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border); background: var(--surface2); white-space: nowrap; }
+  .linked-table td { padding: 10px 14px; font-size: 0.82rem; border-bottom: 1px solid rgba(46,49,72,0.4); vertical-align: middle; }
+  .linked-table tr:last-child td { border-bottom: none; }
+  .linked-table tr:hover td { background: rgba(108,99,255,0.04); }
+  .linked-empty { padding: 36px; text-align: center; color: var(--muted); font-size: 0.84rem; }
+
+  /* CHIPS & BADGES */
+  .badge { font-size: 0.69rem; padding: 2px 9px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
+  .b-planning  { background: rgba(136,146,164,0.12); color: var(--muted); }
+  .b-active    { background: rgba(34,197,94,0.12);   color: #4ade80; }
+  .b-hold      { background: rgba(245,158,11,0.12);  color: #fbbf24; }
+  .b-completed { background: rgba(59,130,246,0.12);  color: #60a5fa; }
+  .b-cancelled { background: rgba(239,68,68,0.12);   color: #f87171; }
+  .chip { border-radius: 5px; padding: 2px 7px; font-size: 0.71rem; font-weight: 500; white-space: nowrap; }
+  .chip-purple { background: rgba(108,99,255,0.12); color: var(--accent2); }
+  .chip-red    { background: rgba(239,68,68,0.12);  color: #f87171; }
+  .chip-orange { background: rgba(249,115,22,0.12); color: #fb923c; }
+  .chip-yellow { background: rgba(245,158,11,0.12); color: #fbbf24; }
+  .chip-muted  { background: var(--surface2); color: var(--muted); }
+  .chip-blue   { background: rgba(59,130,246,0.12); color: #60a5fa; }
+  .chip-green  { background: rgba(34,197,94,0.12);  color: #4ade80; }
+
+  /* STATUS CHIPS for invoices/visits */
+  .s-draft      { background: rgba(136,146,164,0.12); color: var(--muted); }
+  .s-submitted  { background: rgba(59,130,246,0.12);  color: #60a5fa; }
+  .s-approved   { background: rgba(34,197,94,0.12);   color: #4ade80; }
+  .s-paid       { background: rgba(34,197,94,0.18);   color: #22c55e; font-weight: 700; }
+  .s-rejected   { background: rgba(239,68,68,0.12);   color: #f87171; }
+  .s-pending    { background: rgba(245,158,11,0.12);  color: #fbbf24; }
+  .s-disputed   { background: rgba(239,68,68,0.12);   color: #f87171; }
+
+  .act-unlink { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 5px; padding: 3px 8px; font-size: 0.72rem; cursor: pointer; transition: all 0.15s; font-family: inherit; white-space: nowrap; }
+  .act-unlink:hover { border-color: var(--red); color: var(--red); background: rgba(239,68,68,0.06); }
+
+  /* ══════════════════════════════════════════════════════════
+     MODALS
+  ══════════════════════════════════════════════════════════ */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; padding: 16px; }
+  .overlay.open { opacity: 1; pointer-events: all; }
+
+  /* PROJECT FORM MODAL */
+  .modal-form { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 30px; width: 100%; max-width: 560px; transform: translateY(20px); transition: transform 0.2s; max-height: 90vh; overflow-y: auto; }
+  .overlay.open .modal-form { transform: translateY(0); }
+  .modal-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; border-radius: 5px; transition: all 0.15s; }
+  .modal-close:hover { background: var(--surface2); color: var(--text); }
+
+  .fg { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .fg label { font-size: 0.73rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 500; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  input[type=text], input[type=date], select, textarea {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text); padding: 9px 12px; font-size: 0.87rem; font-family: inherit;
+    outline: none; transition: border-color 0.2s; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 70px; }
+  .progress-row { display: flex; align-items: center; gap: 10px; }
+  .progress-pct { font-size: 0.85rem; font-weight: 700; color: var(--accent2); min-width: 36px; text-align: right; }
+
+  .status-toggle { display: flex; gap: 5px; flex-wrap: wrap; }
+  .status-opt { flex: 1; min-width: 70px; padding: 7px 4px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface2); color: var(--muted); font-size: 0.74rem; font-weight: 500; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .status-opt.sel-planning  { border-color: var(--muted);   background: rgba(136,146,164,0.1); color: var(--muted); }
+  .status-opt.sel-active    { border-color: var(--green);   background: rgba(34,197,94,0.12);  color: var(--green); }
+  .status-opt.sel-hold      { border-color: var(--yellow);  background: rgba(245,158,11,0.1);  color: var(--yellow); }
+  .status-opt.sel-completed { border-color: var(--blue);    background: rgba(59,130,246,0.12); color: var(--blue); }
+  .status-opt.sel-cancelled { border-color: var(--red);     background: rgba(239,68,68,0.1);   color: var(--red); }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); justify-content: flex-end; }
+
+  /* PICKER MODAL */
+  .modal-picker { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 680px; transform: translateY(20px); transition: transform 0.2s; max-height: 85vh; display: flex; flex-direction: column; }
+  .overlay.open .modal-picker { transform: translateY(0); }
+  .picker-hdr { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .picker-hdr h3 { font-size: 0.95rem; font-weight: 700; }
+  .picker-search { background: var(--surface2); border: 1px solid var(--border); border-radius: 99px; color: var(--text); padding: 7px 16px; font-size: 0.83rem; outline: none; width: 220px; }
+  .picker-search:focus { border-color: var(--accent); }
+  .picker-list { flex: 1; overflow-y: auto; padding: 8px 12px; }
+  .picker-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background 0.12s; border: 1px solid transparent; margin-bottom: 4px; }
+  .picker-item:hover { background: var(--surface2); }
+  .picker-item.selected { background: rgba(108,99,255,0.1); border-color: rgba(108,99,255,0.3); }
+  .picker-checkbox { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+  .picker-item-info { flex: 1; min-width: 0; }
+  .picker-item-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .picker-item-meta  { font-size: 0.74rem; color: var(--muted); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .picker-empty { padding: 32px; text-align: center; color: var(--muted); font-size: 0.84rem; }
+  .picker-ftr { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .picker-count { font-size: 0.82rem; color: var(--muted); }
+
+  /* CONFIRM MODAL */
+  .modal-confirm { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 26px; width: 90%; max-width: 420px; transform: translateY(16px); transition: transform 0.2s; }
+  .overlay.open .modal-confirm { transform: translateY(0); }
+  .modal-confirm h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+  .modal-confirm p  { font-size: 0.85rem; color: var(--muted); line-height: 1.5; margin-bottom: 20px; }
+  .modal-confirm-acts { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 17px; font-size: 0.84rem; z-index: 400; transform: translateY(20px); opacity: 0; transition: all 0.25s; pointer-events: none; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.ok  { border-color: var(--green); color: var(--green); }
+  .toast.err { border-color: var(--red);   color: var(--red); }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; font-size: 0.86rem; }
+  .overdue-text { color: var(--red); font-weight: 600; }
+
+  /* LIGHT THEME */
+  html.light { --bg: #f0f2f8; --surface: #ffffff; --surface2: #e8eaf4; --border: #d0d4e8; --text: #1a1d2e; --muted: #64748b; }
+</style>
+<script>if(localStorage.getItem('tf_theme')==='light')document.documentElement.classList.add('light');</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="auth.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">Task<span>Flow</span></div>
+  <nav class="sidebar-nav">
+    <a href="index.html">📋 Dashboard</a>
+    <div class="nav-group-label">Operations</div>
+    <a href="fieldwork.html">🔧 Field Work</a>
+    <a href="invoices.html">🧾 Invoices</a>
+    <a href="projects.html" class="active">📁 Projects</a>
+    <div class="nav-group-label">Budget</div>
+    <a href="capex.html">💰 CapEx</a>
+    <a href="opex.html">📊 OpEx</a>
+    <div class="nav-group-label">Assets</div>
+    <a href="devices.html">💻 Devices</a>
+    <a href="branches.html">🏢 Branches</a>
+    <div class="nav-group-label">System</div>
+    <a href="workflow.html">🔀 Workflow</a>
+    <a href="admin.html">⚙️ Admin</a>
+  </nav>
+  <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">☀️ Light</button>
+</aside>
+
+<div class="main-wrap">
+<main>
+
+  <!-- ── STATS ─────────────────────────────────────────────── -->
+  <div class="stats">
+    <div class="sc c0"><div class="sc-label">Total</div><div class="sc-val" id="st-total">0</div></div>
+    <div class="sc c1"><div class="sc-label">Active</div><div class="sc-val" id="st-active">0</div></div>
+    <div class="sc c2"><div class="sc-label">Planning</div><div class="sc-val" id="st-planning">0</div></div>
+    <div class="sc c3"><div class="sc-label">On Hold</div><div class="sc-val" id="st-hold">0</div></div>
+    <div class="sc c4"><div class="sc-label">Completed</div><div class="sc-val" id="st-completed">0</div></div>
+    <div class="sc c5"><div class="sc-label">Overdue</div><div class="sc-val" id="st-overdue">0</div></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       LIST VIEW
+  ══════════════════════════════════════════════════════════ -->
+  <div id="listView">
+    <div class="page-header">
+      <div>
+        <div class="page-title">📁 Projects</div>
+        <div class="page-sub">Track and monitor ongoing projects across all sites.</div>
+      </div>
+      <button class="btn" onclick="openProjectModal(null)">＋ New Project</button>
+    </div>
+    <div class="toolbar">
+      <input class="search-in" id="search" type="search" placeholder="Search projects…" oninput="renderList()">
+      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setFilter('active',this)">Active</button>
+      <button class="filter-btn" onclick="setFilter('planning',this)">Planning</button>
+      <button class="filter-btn" onclick="setFilter('hold',this)">On Hold</button>
+      <button class="filter-btn" onclick="setFilter('completed',this)">Done</button>
+    </div>
+    <div class="proj-list" id="projList"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       DETAIL VIEW
+  ══════════════════════════════════════════════════════════ -->
+  <div id="detailView" style="display:none">
+
+    <button class="back-btn" onclick="showList()">← Back to Projects</button>
+
+    <!-- Project header -->
+    <div class="detail-header" id="detailHeader">
+      <div class="detail-header-top">
+        <div style="flex:1;min-width:0">
+          <div class="detail-title" id="detailTitle"></div>
+          <div class="detail-meta-row" id="detailMeta"></div>
+        </div>
+        <div class="detail-actions">
+          <button class="btn btn-sm btn-ghost" onclick="openProjectModal(currentProjectId)">✎ Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="confirmDeleteProject(currentProjectId)">✕ Delete</button>
+        </div>
+      </div>
+      <div class="detail-badges" id="detailBadges" style="margin-bottom:14px;padding-left:8px"></div>
+      <div class="detail-prog-label"><span>Progress</span><span id="detailProgPct" style="font-weight:700"></span></div>
+      <div class="detail-prog-bg"><div class="detail-prog-fill" id="detailProgFill"></div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-overview" onclick="switchTab('overview',this)">📋 Overview</button>
+      <button class="tab-btn" id="tab-invoices" onclick="switchTab('invoices',this)">🧾 Invoices <span class="tab-count" id="tc-invoices">0</span></button>
+      <button class="tab-btn" id="tab-fieldwork" onclick="switchTab('fieldwork',this)">🔧 Field Work <span class="tab-count" id="tc-fieldwork">0</span></button>
+    </div>
+
+    <!-- Overview -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="overview-grid">
+        <div>
+          <div class="info-card" style="margin-bottom:14px">
+            <h4>Details</h4>
+            <div id="detailInfoRows"></div>
+          </div>
+          <div class="prog-editor">
+            <h4>Update Progress</h4>
+            <div class="prog-slider-row">
+              <input type="range" id="inlineProgress" min="0" max="100" value="0"
+                oninput="document.getElementById('inlineProgPct').textContent=this.value+'%'">
+              <span class="prog-pct-badge" id="inlineProgPct">0%</span>
+            </div>
+            <button class="btn btn-sm" onclick="saveInlineProgress()">Save Progress</button>
+          </div>
+        </div>
+        <div class="notes-card">
+          <h4>Notes</h4>
+          <div id="detailNotes"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invoices -->
+    <div class="tab-panel" id="panel-invoices">
+      <div class="linked-section">
+        <div class="linked-section-hdr">
+          <h3>Linked Invoices</h3>
+          <button class="btn btn-sm" onclick="openInvoicePicker()">＋ Link Invoice</button>
+        </div>
+        <div id="linkedInvoicesBody"></div>
+      </div>
+    </div>
+
+    <!-- Field Work -->
+    <div class="tab-panel" id="panel-fieldwork">
+      <div class="linked-section">
+        <div class="linked-section-hdr">
+          <h3>Linked Field Work</h3>
+          <button class="btn btn-sm" onclick="openVisitPicker()">＋ Link Field Work</button>
+        </div>
+        <div id="linkedVisitsBody"></div>
+      </div>
+    </div>
+
+  </div><!-- /#detailView -->
+
+</main>
+</div><!-- /.main-wrap -->
+
+<!-- ══════════════════════════════════════════════════════════
+     PROJECT FORM MODAL
+══════════════════════════════════════════════════════════ -->
+<div class="overlay" id="projectModal">
+  <div class="modal-form">
+    <div class="modal-title">
+      <span id="modalFormTitle">New Project</span>
+      <button class="modal-close" onclick="closeProjectModal()">✕</button>
+    </div>
+    <div class="fg">
+      <label>Project Name *</label>
+      <input type="text" id="pfName" placeholder="e.g. Network Upgrade — Building A">
+    </div>
+    <div class="two-col">
+      <div class="fg">
+        <label>Category</label>
+        <select id="pfCategory">
+          <option>IT Infrastructure</option><option>Networking</option><option>Security</option>
+          <option>Facilities</option><option>Renovation</option><option>Software</option>
+          <option>Compliance</option><option>Other</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Priority</label>
+        <select id="pfPriority">
+          <option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option>
+        </select>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="fg">
+        <label>Site</label>
+        <input type="text" id="pfSite" list="siteNamesList" placeholder="— None —">
+        <datalist id="siteNamesList"></datalist>
+      </div>
+      <div class="fg">
+        <label>Assigned To</label>
+        <input type="text" id="pfAssigned" list="userNamesList" placeholder="Person or team">
+        <datalist id="userNamesList"></datalist>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="fg"><label>Start Date</label><input type="date" id="pfStart"></div>
+      <div class="fg"><label>End Date</label><input type="date" id="pfEnd"></div>
+    </div>
+    <div class="fg">
+      <label>Progress</label>
+      <div class="progress-row">
+        <input type="range" id="pfProgress" min="0" max="100" value="0"
+          oninput="document.getElementById('pfProgressVal').textContent=this.value+'%'">
+        <span class="progress-pct" id="pfProgressVal">0%</span>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Status</label>
+      <div class="status-toggle">
+        <div class="status-opt" id="sPlanning"  onclick="selectStatus('planning')">Planning</div>
+        <div class="status-opt" id="sActive"    onclick="selectStatus('active')">Active</div>
+        <div class="status-opt" id="sHold"      onclick="selectStatus('hold')">On Hold</div>
+        <div class="status-opt" id="sCompleted" onclick="selectStatus('completed')">Done</div>
+        <div class="status-opt" id="sCancelled" onclick="selectStatus('cancelled')">Cancelled</div>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Notes</label>
+      <textarea id="pfNotes" placeholder="Context, blockers, links…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeProjectModal()">Cancel</button>
+      <button class="btn" id="pfSubmitBtn" onclick="submitProjectForm()">Save Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     INVOICE PICKER MODAL
+══════════════════════════════════════════════════════════ -->
+<div class="overlay" id="invoicePickerModal">
+  <div class="modal-picker">
+    <div class="picker-hdr">
+      <h3>🧾 Link Invoices</h3>
+      <input class="picker-search" id="invPickSearch" type="search" placeholder="Search invoices…" oninput="renderInvPicker()">
+      <button class="modal-close" onclick="closeInvoicePicker()">✕</button>
+    </div>
+    <div class="picker-list" id="invPickList"></div>
+    <div class="picker-ftr">
+      <span class="picker-count" id="invPickCount">0 selected</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="closeInvoicePicker()">Cancel</button>
+        <button class="btn btn-sm" onclick="confirmLinkInvoices()">Link Selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     FIELD WORK PICKER MODAL
+══════════════════════════════════════════════════════════ -->
+<div class="overlay" id="visitPickerModal">
+  <div class="modal-picker">
+    <div class="picker-hdr">
+      <h3>🔧 Link Field Work</h3>
+      <input class="picker-search" id="visPickSearch" type="search" placeholder="Search visits…" oninput="renderVisPicker()">
+      <button class="modal-close" onclick="closeVisitPicker()">✕</button>
+    </div>
+    <div class="picker-list" id="visPickList"></div>
+    <div class="picker-ftr">
+      <span class="picker-count" id="visPickCount">0 selected</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="closeVisitPicker()">Cancel</button>
+        <button class="btn btn-sm" onclick="confirmLinkVisits()">Link Selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     CONFIRM DELETE MODAL
+══════════════════════════════════════════════════════════ -->
+<div class="overlay" id="confirmModal">
+  <div class="modal-confirm">
+    <h3 id="confirmTitle">Delete Project?</h3>
+    <p id="confirmMsg">This cannot be undone.</p>
+    <div class="modal-confirm-acts">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirmOkBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── UTILS ──────────────────────────────────────────────────────
+function uid() { return (crypto.randomUUID ? crypto.randomUUID() : 'p-' + Math.random().toString(36).slice(2,11) + Date.now().toString(36)); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(d) { if (!d) return '—'; const p = d.split('-'); return p.length===3 ? `${p[1]}/${p[2]}/${p[0]}` : d; }
+function today() { return new Date().toISOString().slice(0,10); }
+
+function toast(msg, type='ok') {
   const el = document.getElementById('toast');
-  if (!el) return;
-  el.textContent = msg;
-  el.className = `show ${type}`;
-  clearTimeout(_toast._t);
-  _toast._t = setTimeout(() => el.className = '', 3000);
+  el.textContent = msg; el.className = 'toast show ' + type;
+  clearTimeout(toast._t); toast._t = setTimeout(() => el.className='toast', 3000);
 }
 
-// ── DB OBJECT — global, used by all pages ──────────────────────
-window.DB = {
+function toggleTheme() {
+  const light = document.documentElement.classList.toggle('light');
+  localStorage.setItem('tf_theme', light ? 'light' : 'dark');
+  document.getElementById('themeToggle').textContent = light ? '🌙 Dark' : '☀️ Light';
+}
+(function(){ if(localStorage.getItem('tf_theme')==='light') document.getElementById('themeToggle').textContent='🌙 Dark'; })();
 
-  // ────────────────────────────────────────────────────────────
-  // SITES
-  // ────────────────────────────────────────────────────────────
-  async getSites() {
-    const { data, error } = await _sb.from('sites').select('*').order('name');
-    _log(error, 'getSites');
-    return data || [];
-  },
+// ── STATE ──────────────────────────────────────────────────────
+let projects = [];
+let allInvoices = [];
+let allVisits   = [];
+let filterStatus = 'all';
+let currentProjectId = null;
 
-  async saveSite(site) {
-    const record = { ...site };
-    delete record.id; // let upsert handle; for new records no id
-    if (site.id) record.id = site.id;
-    const { data, error } = await _sb.from('sites').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveSite');
-    return { data, error };
-  },
+// Picker state
+let invPickSelected = new Set();
+let visPickSelected = new Set();
 
-  async deleteSite(id) {
-    const { error } = await _sb.from('sites').delete().eq('id', id);
-    _log(error, 'deleteSite');
-    return { error };
-  },
+// ── LOAD ───────────────────────────────────────────────────────
+async function loadAll() {
+  [projects, allInvoices, allVisits] = await Promise.all([
+    DB.getProjects(),
+    DB.getInvoices(),
+    DB.getVisits(),
+  ]);
+  // Populate site/user datalists
+  try {
+    const sites = await DB.getSiteNames();
+    const sl = document.getElementById('siteNamesList');
+    if (sl) sl.innerHTML = sites.map(n=>`<option value="${esc(n)}">`).join('');
+  } catch(_) {}
+  try {
+    const users = await DB.getUsers();
+    const ul = document.getElementById('userNamesList');
+    if (ul) ul.innerHTML = users.map(u=>`<option value="${esc(u.name)}">`).join('');
+  } catch(_) {}
+  updateStats();
+  renderList();
+}
 
-  async getSiteNames() {
-    const { data, error } = await _sb.from('sites').select('name').eq('status', 'active').order('name');
-    _log(error, 'getSiteNames');
-    return data ? data.map(r => r.name) : [];
-  },
+// ── STATS ──────────────────────────────────────────────────────
+function updateStats() {
+  const now = today();
+  document.getElementById('st-total').textContent    = projects.length;
+  document.getElementById('st-active').textContent   = projects.filter(p=>p.status==='active').length;
+  document.getElementById('st-planning').textContent = projects.filter(p=>p.status==='planning').length;
+  document.getElementById('st-hold').textContent     = projects.filter(p=>p.status==='hold').length;
+  document.getElementById('st-completed').textContent= projects.filter(p=>p.status==='completed').length;
+  document.getElementById('st-overdue').textContent  = projects.filter(p=>p.end_date && p.end_date < now && p.status !== 'completed' && p.status !== 'cancelled').length;
+}
 
-  // ────────────────────────────────────────────────────────────
-  // VENDORS
-  // ────────────────────────────────────────────────────────────
-  async getVendors() {
-    const { data, error } = await _sb.from('vendors').select('*').order('name');
-    _log(error, 'getVendors');
-    return data || [];
-  },
+// ── LIST ───────────────────────────────────────────────────────
+function setFilter(s, btn) {
+  filterStatus = s;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderList();
+}
 
-  async saveVendor(vendor) {
-    const record = { ...vendor };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('vendors').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveVendor');
-    return { data, error };
-  },
+function getFiltered() {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  return projects.filter(p => {
+    if (filterStatus !== 'all' && p.status !== filterStatus) return false;
+    if (q && ![p.name,p.category,p.site,p.assigned_to,p.notes].some(f=>(f||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
 
-  async deleteVendor(id) {
-    const { error } = await _sb.from('vendors').delete().eq('id', id);
-    _log(error, 'deleteVendor');
-    return { error };
-  },
-
-  async getVendorNames() {
-    const { data, error } = await _sb.from('vendors').select('name').eq('status', 'Active').order('name');
-    _log(error, 'getVendorNames');
-    return data ? data.map(r => r.name) : [];
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // ROLES
-  // ────────────────────────────────────────────────────────────
-  async getRoles() {
-    const { data, error } = await _sb.from('roles').select('*').order('name');
-    _log(error, 'getRoles');
-    return data || [];
-  },
-
-  async saveRole(role) {
-    const record = { ...role };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('roles').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveRole');
-    return { data, error };
-  },
-
-  async deleteRole(id) {
-    const { error } = await _sb.from('roles').delete().eq('id', id);
-    _log(error, 'deleteRole');
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // USERS
-  // ────────────────────────────────────────────────────────────
-  async getUsers() {
-    const { data, error } = await _sb.from('users').select('*').order('name');
-    _log(error, 'getUsers');
-    return data || [];
-  },
-
-  async saveUser(user) {
-    const record = { ...user };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('users').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveUser');
-    return { data, error };
-  },
-
-  async deleteUser(id) {
-    const { error } = await _sb.from('users').delete().eq('id', id);
-    _log(error, 'deleteUser');
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // TASKS
-  // ────────────────────────────────────────────────────────────
-  async getTasks() {
-    const { data, error } = await _sb.from('tasks').select('*').order('created_at', { ascending: false });
-    _log(error, 'getTasks');
-    return data || [];
-  },
-
-  async saveTask(task) {
-    const record = { ...task };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('tasks').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveTask');
-    return { data, error };
-  },
-
-  async deleteTask(id) {
-    const { error } = await _sb.from('tasks').delete().eq('id', id);
-    _log(error, 'deleteTask');
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // FIELD VISITS
-  // ────────────────────────────────────────────────────────────
-  async getVisits() {
-    const { data, error } = await _sb.from('visits').select('*').order('date', { ascending: false });
-    _log(error, 'getVisits');
-    return data || [];
-  },
-
-  async saveVisit(visit) {
-    const record = { ...visit };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('visits').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveVisit');
-    return { data, error };
-  },
-
-  async deleteVisit(id) {
-    const { error } = await _sb.from('visits').delete().eq('id', id);
-    _log(error, 'deleteVisit');
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // INVOICES
-  // ────────────────────────────────────────────────────────────
-  async getInvoices() {
-    const { data, error } = await _sb.from('invoices').select('*').order('created_at', { ascending: false });
-    _log(error, 'getInvoices');
-    return data || [];
-  },
-
-  async saveInvoice(invoice) {
-    const record = { ...invoice };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('invoices').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveInvoice');
-    return { data, error };
-  },
-
-  async deleteInvoice(id) {
-    // Also delete associated attachment if any
-    const inv = await _sb.from('invoices').select('attachment_path').eq('id', id).single();
-    if (inv.data?.attachment_path) {
-      await _sb.storage.from(STORAGE_BUCKET).remove([inv.data.attachment_path]);
-    }
-    const { error } = await _sb.from('invoices').delete().eq('id', id);
-    _log(error, 'deleteInvoice');
-    // Also clean up attachments table
-    await _sb.from('attachments').delete().eq('entity_type', 'invoice').eq('entity_id', id);
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // DEVICES
-  // ────────────────────────────────────────────────────────────
-  async getDevices() {
-    const { data, error } = await _sb.from('devices').select('*').order('name');
-    _log(error, 'getDevices');
-    return data || [];
-  },
-
-  async saveDevice(device) {
-    const record = { ...device };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('devices').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveDevice');
-    return { data, error };
-  },
-
-  async deleteDevice(id) {
-    const dev = await _sb.from('devices').select('attachment_path').eq('id', id).single();
-    if (dev.data?.attachment_path) {
-      await _sb.storage.from(STORAGE_BUCKET).remove([dev.data.attachment_path]);
-    }
-    const { error } = await _sb.from('devices').delete().eq('id', id);
-    _log(error, 'deleteDevice');
-    await _sb.from('attachments').delete().eq('entity_type', 'device').eq('entity_id', id);
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // PROJECTS
-  // ────────────────────────────────────────────────────────────
-  async getProjects() {
-    const { data, error } = await _sb.from('projects').select('*').order('created_at', { ascending: false });
-    _log(error, 'getProjects');
-    return data || [];
-  },
-
-  async saveProject(project) {
-    const record = { ...project };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('projects').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveProject');
-    return { data, error };
-  },
-
-  async deleteProject(id) {
-    const { error } = await _sb.from('projects').delete().eq('id', id);
-    _log(error, 'deleteProject');
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // WORKFLOWS
-  // ────────────────────────────────────────────────────────────
-  async getWorkflows() {
-    const { data, error } = await _sb.from('workflows').select('*').order('name');
-    _log(error, 'getWorkflows');
-    return data || [];
-  },
-
-  async saveWorkflow(workflow) {
-    const record = { ...workflow };
-    if (!record.id) delete record.id;
-    const { data, error } = await _sb.from('workflows').upsert(record, { onConflict: 'id' }).select().single();
-    _log(error, 'saveWorkflow');
-    return { data, error };
-  },
-
-  async deleteWorkflow(id) {
-    const { error } = await _sb.from('workflows').delete().eq('id', id);
-    _log(error, 'deleteWorkflow');
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // ATTACHMENTS (multi-file)
-  // ────────────────────────────────────────────────────────────
-  async getAttachments(entityType, entityId) {
-    const { data, error } = await _sb
-      .from('attachments')
-      .select('*')
-      .eq('entity_type', entityType)
-      .eq('entity_id', entityId)
-      .order('uploaded_at', { ascending: false });
-    _log(error, 'getAttachments');
-    return data || [];
-  },
-
-  async saveAttachment(record) {
-    const { data, error } = await _sb.from('attachments').insert(record).select().single();
-    _log(error, 'saveAttachment');
-    return { data, error };
-  },
-
-  async deleteAttachment(id, filePath) {
-    if (filePath) await _sb.storage.from(STORAGE_BUCKET).remove([filePath]);
-    const { error } = await _sb.from('attachments').delete().eq('id', id);
-    _log(error, 'deleteAttachment');
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // FILE STORAGE
-  // ────────────────────────────────────────────────────────────
-
-  /**
-   * Upload a file to Supabase Storage
-   * @param {File} file - the File object from an <input type="file">
-   * @param {string} folder - e.g. 'invoices', 'devices'
-   * @param {string} entityId - the record UUID (for path namespacing)
-   * @returns {{ path: string, url: string, error: object|null }}
-   */
-  async uploadFile(file, folder, entityId) {
-    const ext  = file.name.split('.').pop();
-    const path = `${folder}/${entityId}/${Date.now()}-${file.name.replace(/[^a-z0-9._-]/gi, '_')}`;
-    const { data, error } = await _sb.storage
-      .from(STORAGE_BUCKET)
-      .upload(path, file, { upsert: true, contentType: file.type });
-    if (error) { _log(error, 'uploadFile'); return { path: null, url: null, error }; }
-    const { data: urlData } = _sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    return { path, url: urlData.publicUrl, error: null };
-  },
-
-  /**
-   * Get the public URL for a stored file
-   * @param {string} path - storage path returned by uploadFile
-   */
-  getFileUrl(path) {
-    if (!path) return null;
-    const { data } = _sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    return data.publicUrl;
-  },
-
-  /**
-   * Delete a file from storage
-   * @param {string} path - storage path
-   */
-  async deleteFile(path) {
-    if (!path) return;
-    const { error } = await _sb.storage.from(STORAGE_BUCKET).remove([path]);
-    _log(error, 'deleteFile');
-    return { error };
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // AUTH
-  // ────────────────────────────────────────────────────────────
-  async signIn(email, password) {
-    const { data, error } = await _sb.auth.signInWithPassword({ email, password });
-    _log(error, 'signIn');
-    return { data, error };
-  },
-
-  async signOut() {
-    const { error } = await _sb.auth.signOut();
-    _log(error, 'signOut');
-    return { error };
-  },
-
-  async getSession() {
-    const { data: { session }, error } = await _sb.auth.getSession();
-    _log(error, 'getSession');
-    return session;
-  },
-
-  async getCurrentUserProfile() {
-    const session = await this.getSession();
-    if (!session) return null;
-    const { data, error } = await _sb
-      .from('users')
-      .select('*')
-      .eq('email', session.user.email)
-      .maybeSingle();
-    _log(error, 'getCurrentUserProfile');
-    return data;
-  },
-
-  // ────────────────────────────────────────────────────────────
-  // CONFIG CHECK
-  // ────────────────────────────────────────────────────────────
-  isConfigured() {
-    return SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
-  },
+const PBAR_COLORS = { planning:'var(--muted)', active:'var(--green)', hold:'var(--yellow)', completed:'var(--blue)', cancelled:'var(--red)' };
+const STATUS_BADGE = {
+  planning:  '<span class="badge b-planning">Planning</span>',
+  active:    '<span class="badge b-active">Active</span>',
+  hold:      '<span class="badge b-hold">On Hold</span>',
+  completed: '<span class="badge b-completed">Completed</span>',
+  cancelled: '<span class="badge b-cancelled">Cancelled</span>',
 };
+const PRI_CHIP = { Critical:'chip-red', High:'chip-orange', Medium:'chip-yellow', Low:'chip-muted' };
 
-// ── LOCALSTORAGE FALLBACKS ─────────────────────────────────────
-// When Supabase is not configured (or localOnly: true), all DB.*
-// methods transparently use localStorage instead.
-if (!DB.isConfigured()) {
-  const _lsGet  = (k, d=[]) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch { return d; } };
-  const _lsSave = (k, v)    => localStorage.setItem(k, JSON.stringify(v));
-  const _lsUid  = ()        => (crypto.randomUUID ? crypto.randomUUID() : 'ls-' + Math.random().toString(36).slice(2,11) + Date.now().toString(36));
-  const _upsert = (arr, rec) => { const i = arr.findIndex(r => r.id === rec.id); if (i >= 0) arr[i] = { ...arr[i], ...rec }; else arr.push(rec); return arr; };
-  const _ok     = d => ({ data: d, error: null });
-  const _err0   = () => ({ error: null });
-  const _now    = () => new Date().toISOString();
-
-  // Sites
-  DB.getSites     = async () => _lsGet('tf_sites').sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveSite     = async s  => { if (!s.id) s.id = _lsUid(); _lsSave('tf_sites', _upsert(_lsGet('tf_sites'), s)); return _ok(s); };
-  DB.deleteSite   = async id => { _lsSave('tf_sites', _lsGet('tf_sites').filter(r => r.id !== id)); return _err0(); };
-  DB.getSiteNames = async () => _lsGet('tf_sites').filter(r => r.status === 'active').map(r => r.name).sort();
-
-  // Vendors
-  DB.getVendors     = async () => _lsGet('tf_vendors').sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveVendor     = async v  => { if (!v.id) v.id = _lsUid(); _lsSave('tf_vendors', _upsert(_lsGet('tf_vendors'), v)); return _ok(v); };
-  DB.deleteVendor   = async id => { _lsSave('tf_vendors', _lsGet('tf_vendors').filter(r => r.id !== id)); return _err0(); };
-  DB.getVendorNames = async () => _lsGet('tf_vendors').filter(r => r.status === 'Active').map(r => r.name).sort();
-
-  // Roles
-  DB.getRoles    = async () => _lsGet('tf_roles').sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveRole    = async r  => { if (!r.id) r.id = _lsUid(); _lsSave('tf_roles', _upsert(_lsGet('tf_roles'), r)); return _ok(r); };
-  DB.deleteRole  = async id => { _lsSave('tf_roles', _lsGet('tf_roles').filter(r => r.id !== id)); return _err0(); };
-
-  // Users (team roster — separate from tf_current_user session)
-  DB.getUsers    = async () => _lsGet('tf_users_db').sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveUser    = async u  => { if (!u.id) u.id = _lsUid(); _lsSave('tf_users_db', _upsert(_lsGet('tf_users_db'), u)); return _ok(u); };
-  DB.deleteUser  = async id => { _lsSave('tf_users_db', _lsGet('tf_users_db').filter(r => r.id !== id)); return _err0(); };
-
-  // Tasks
-  DB.getTasks    = async () => _lsGet('taskflow_tasks').sort((a,b) => (b.created||0) - (a.created||0));
-  DB.saveTask    = async t  => { if (!t.id) t.id = _lsUid(); _lsSave('taskflow_tasks', _upsert(_lsGet('taskflow_tasks'), t)); return _ok(t); };
-  DB.deleteTask  = async id => { _lsSave('taskflow_tasks', _lsGet('taskflow_tasks').filter(r => r.id !== id)); return _err0(); };
-
-  // Visits (Field Work)
-  DB.getVisits   = async () => _lsGet('taskflow_visits').sort((a,b) => (b.date||'').localeCompare(a.date||''));
-  DB.saveVisit   = async v  => { if (!v.id) v.id = _lsUid(); _lsSave('taskflow_visits', _upsert(_lsGet('taskflow_visits'), v)); return _ok(v); };
-  DB.deleteVisit = async id => { _lsSave('taskflow_visits', _lsGet('taskflow_visits').filter(r => r.id !== id)); return _err0(); };
-
-  // Invoices
-  DB.getInvoices    = async () => _lsGet('tf_invoices').sort((a,b) => (b.created||0) - (a.created||0));
-  DB.saveInvoice    = async i  => { if (!i.id) i.id = _lsUid(); _lsSave('tf_invoices', _upsert(_lsGet('tf_invoices'), i)); return _ok(i); };
-  DB.deleteInvoice  = async id => { _lsSave('tf_invoices', _lsGet('tf_invoices').filter(r => r.id !== id)); return _err0(); };
-
-  // Devices
-  DB.getDevices   = async () => _lsGet('tf_devices').sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveDevice   = async d  => { if (!d.id) d.id = _lsUid(); _lsSave('tf_devices', _upsert(_lsGet('tf_devices'), d)); return _ok(d); };
-  DB.deleteDevice = async id => { _lsSave('tf_devices', _lsGet('tf_devices').filter(r => r.id !== id)); return _err0(); };
-
-  // Projects
-  DB.getProjects    = async () => _lsGet('tf_projects').sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''));
-  DB.saveProject    = async p  => { if (!p.id) { p.id = _lsUid(); p.created_at = _now(); } p.updated_at = _now(); _lsSave('tf_projects', _upsert(_lsGet('tf_projects'), p)); return _ok(p); };
-  DB.deleteProject  = async id => { _lsSave('tf_projects', _lsGet('tf_projects').filter(r => r.id !== id)); return _err0(); };
-
-  // Workflows
-  DB.getWorkflows    = async () => _lsGet('tf_workflows').sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveWorkflow    = async w  => { if (!w.id) w.id = _lsUid(); _lsSave('tf_workflows', _upsert(_lsGet('tf_workflows'), w)); return _ok(w); };
-  DB.deleteWorkflow  = async id => { _lsSave('tf_workflows', _lsGet('tf_workflows').filter(r => r.id !== id)); return _err0(); };
-
-  DB.getCapex    = async () => _lsGet('tf_capex').sort((a,b) => (b.created||0) - (a.created||0));
-  DB.saveCapex   = async c  => { if (!c.id) c.id = _lsUid(); _lsSave('tf_capex', _upsert(_lsGet('tf_capex'), c)); return _ok(c); };
-  DB.deleteCapex = async id => { _lsSave('tf_capex', _lsGet('tf_capex').filter(r => r.id !== id)); return _err0(); };
-
-  DB.getOpex    = async () => _lsGet('tf_opex').sort((a,b) => (b.created||0) - (a.created||0));
-  DB.saveOpex   = async o  => { if (!o.id) o.id = _lsUid(); _lsSave('tf_opex', _upsert(_lsGet('tf_opex'), o)); return _ok(o); };
-  DB.deleteOpex = async id => { _lsSave('tf_opex', _lsGet('tf_opex').filter(r => r.id !== id)); return _err0(); };
-
-  // Attachments / file upload — no-op in local mode
-  DB.getAttachments  = async () => [];
-  DB.saveAttachment  = async () => _ok(null);
-  DB.deleteAttachment = async () => _err0();
-  DB.uploadFile      = async () => ({ path: null, url: null, error: { message: 'File uploads require Supabase. Set localOnly: false in config.js to enable.' } });
-  DB.getFileUrl      = () => null;
-  DB.deleteFile      = async () => {};
+function renderList() {
+  const list = document.getElementById('projList');
+  const rows = getFiltered();
+  const now  = today();
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty">No projects found.</div>';
+    return;
+  }
+  list.innerHTML = rows.map(p => {
+    const overdue = p.end_date && p.end_date < now && p.status !== 'completed' && p.status !== 'cancelled';
+    const pct = Math.min(100, Math.max(0, p.progress || 0));
+    const color = PBAR_COLORS[p.status] || 'var(--accent)';
+    return `<div class="proj-card${p.status==='completed'?' done':''}" data-priority="${esc(p.priority||'Medium')}" onclick="openDetail('${p.id}')">
+      <div class="proj-top">
+        <div>
+          <div class="proj-name">${esc(p.name)}</div>
+          <div class="proj-meta">
+            ${p.site    ? `<span>📍 ${esc(p.site)}</span>` : ''}
+            ${p.assigned_to ? `<span>👤 ${esc(p.assigned_to)}</span>` : ''}
+            ${p.end_date ? `<span class="${overdue?'overdue-text':''}">📅 ${fmt(p.end_date)}</span>` : ''}
+            ${p.category ? `<span>${esc(p.category)}</span>` : ''}
+          </div>
+        </div>
+        <div class="proj-badges">
+          ${STATUS_BADGE[p.status] || ''}
+          <span class="chip ${PRI_CHIP[p.priority]||'chip-muted'}">${esc(p.priority||'Medium')}</span>
+        </div>
+      </div>
+      <div class="prog-bar-bg"><div class="prog-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="prog-footer"><span>${pct}% complete</span>${p.end_date?`<span>${overdue?'⚠ Overdue':'Due '+fmt(p.end_date)}</span>`:''}</div>
+    </div>`;
+  }).join('');
 }
 
-// ── GOOGLE SHEETS ADAPTER ──────────────────────────────────────
-// When sheetsUrl is set in config.js, all DB.* methods route to
-// the Google Apps Script web app instead of Supabase or localStorage.
-(function () {
-  const _gsUrl = (_cfg.sheetsUrl || '').trim();
-  if (!_gsUrl || _gsUrl === 'YOUR_APPS_SCRIPT_URL') return;
+// ── DETAIL ─────────────────────────────────────────────────────
+function showList() {
+  document.getElementById('listView').style.display   = '';
+  document.getElementById('detailView').style.display = 'none';
+  currentProjectId = null;
+}
 
-  async function _gsReq(action, sheet, data, id) {
-    try {
-      const payload = encodeURIComponent(JSON.stringify({ action, sheet, data: data || null, id: id || null }));
-      const res = await fetch(_gsUrl + '?p=' + payload);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      return await res.json();
-    } catch (err) {
-      console.error('[Sheets]', err);
-      return { error: err.message };
+function openDetail(id) {
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  currentProjectId = id;
+
+  const now = today();
+  const overdue = p.end_date && p.end_date < now && p.status !== 'completed' && p.status !== 'cancelled';
+  const pct = Math.min(100, Math.max(0, p.progress || 0));
+  const color = PBAR_COLORS[p.status] || 'var(--accent)';
+
+  // Header
+  const hdr = document.getElementById('detailHeader');
+  hdr.setAttribute('data-priority', p.priority || 'Medium');
+  document.getElementById('detailTitle').textContent = p.name;
+  document.getElementById('detailMeta').innerHTML = [
+    p.site         ? `<span>📍 ${esc(p.site)}</span>` : '',
+    p.assigned_to  ? `<span>👤 ${esc(p.assigned_to)}</span>` : '',
+    p.start_date   ? `<span>🗓 Started ${fmt(p.start_date)}</span>` : '',
+    p.end_date     ? `<span class="${overdue?'overdue-text':''}">📅 Due ${fmt(p.end_date)}</span>` : '',
+  ].join('');
+  document.getElementById('detailBadges').innerHTML =
+    (STATUS_BADGE[p.status]||'') +
+    `<span class="chip ${PRI_CHIP[p.priority]||'chip-muted'}">${esc(p.priority||'Medium')}</span>` +
+    (p.category ? `<span class="chip chip-purple">${esc(p.category)}</span>` : '');
+  document.getElementById('detailProgPct').textContent = pct + '%';
+  const fill = document.getElementById('detailProgFill');
+  fill.style.width = pct + '%'; fill.style.background = color;
+
+  // Overview
+  document.getElementById('detailInfoRows').innerHTML = [
+    ['Status',   STATUS_BADGE[p.status] || esc(p.status)],
+    ['Priority', `<span class="chip ${PRI_CHIP[p.priority]||'chip-muted'}">${esc(p.priority||'Medium')}</span>`],
+    ['Category', esc(p.category||'—')],
+    ['Site',     esc(p.site||'—')],
+    ['Assigned', esc(p.assigned_to||'—')],
+    ['Start',    fmt(p.start_date)],
+    ['Due',      `<span class="${overdue?'overdue-text':''}">${fmt(p.end_date)}</span>`],
+  ].map(([l,v]) => `<div class="info-row"><span class="label">${l}</span><span class="val">${v}</span></div>`).join('');
+
+  const notesEl = document.getElementById('detailNotes');
+  notesEl.innerHTML = p.notes
+    ? `<div class="notes-text">${esc(p.notes)}</div>`
+    : '<div class="notes-empty">No notes.</div>';
+
+  // Inline progress slider
+  document.getElementById('inlineProgress').value = pct;
+  document.getElementById('inlineProgPct').textContent = pct + '%';
+
+  // Linked tabs
+  renderLinkedInvoices(id);
+  renderLinkedVisits(id);
+
+  // Switch views
+  switchTab('overview', document.getElementById('tab-overview'));
+  document.getElementById('listView').style.display   = 'none';
+  document.getElementById('detailView').style.display = '';
+  window.scrollTo(0, 0);
+}
+
+async function saveInlineProgress() {
+  const p = projects.find(x => x.id === currentProjectId);
+  if (!p) return;
+  p.progress = parseInt(document.getElementById('inlineProgress').value, 10);
+  const { error } = await DB.saveProject(p);
+  if (error) { toast('Save failed: ' + error.message, 'err'); return; }
+  projects = await DB.getProjects();
+  updateStats();
+  toast('Progress saved.');
+  // Refresh header
+  document.getElementById('detailProgPct').textContent = p.progress + '%';
+  const fill = document.getElementById('detailProgFill');
+  fill.style.width = p.progress + '%';
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ── LINKED INVOICES ────────────────────────────────────────────
+function getLinkedInvoices(projId) {
+  return allInvoices.filter(i => i.project_id === projId);
+}
+function getLinkedVisits(projId) {
+  return allVisits.filter(v => v.project_id === projId);
+}
+
+function renderLinkedInvoices(projId) {
+  const rows = getLinkedInvoices(projId);
+  const tc = document.getElementById('tc-invoices');
+  if (tc) tc.textContent = rows.length;
+  const body = document.getElementById('linkedInvoicesBody');
+  if (!rows.length) {
+    body.innerHTML = '<div class="linked-empty">No invoices linked to this project.</div>'; return;
+  }
+  body.innerHTML = `<table class="linked-table">
+    <thead><tr><th>#</th><th>Vendor</th><th>Amount</th><th>Status</th><th>Due</th><th></th></tr></thead>
+    <tbody>${rows.map(i=>`<tr>
+      <td>${esc(i.invNum||i.invoice_num||'—')}</td>
+      <td>${esc(i.vendor||'—')}</td>
+      <td>SAR ${Number(i.amount||0).toLocaleString()}</td>
+      <td><span class="badge s-${(i.status||'draft').toLowerCase()}">${esc(i.status||'Draft')}</span></td>
+      <td>${fmt(i.dueDate||i.due_date)}</td>
+      <td><button class="act-unlink" onclick="unlinkInvoice('${i.id}')">Unlink</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function renderLinkedVisits(projId) {
+  const rows = getLinkedVisits(projId);
+  const tc = document.getElementById('tc-fieldwork');
+  if (tc) tc.textContent = rows.length;
+  const body = document.getElementById('linkedVisitsBody');
+  if (!rows.length) {
+    body.innerHTML = '<div class="linked-empty">No field work linked to this project.</div>'; return;
+  }
+  body.innerHTML = `<table class="linked-table">
+    <thead><tr><th>Vendor</th><th>Site</th><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows.map(v=>`<tr>
+      <td>${esc(v.vendor||'—')}</td>
+      <td>${esc(v.site||'—')}</td>
+      <td>${fmt(v.date)}</td>
+      <td>SAR ${Number(v.amount||0).toLocaleString()}</td>
+      <td><span class="badge s-${(v.status||'pending').toLowerCase()}">${esc(v.status||'Pending')}</span></td>
+      <td><button class="act-unlink" onclick="unlinkVisit('${v.id}')">Unlink</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function unlinkInvoice(id) {
+  const inv = allInvoices.find(i => i.id === id);
+  if (!inv) return;
+  delete inv.project_id;
+  await DB.saveInvoice(inv);
+  allInvoices = await DB.getInvoices();
+  renderLinkedInvoices(currentProjectId);
+  toast('Invoice unlinked.');
+}
+
+async function unlinkVisit(id) {
+  const v = allVisits.find(x => x.id === id);
+  if (!v) return;
+  delete v.project_id;
+  await DB.saveVisit(v);
+  allVisits = await DB.getVisits();
+  renderLinkedVisits(currentProjectId);
+  toast('Field work unlinked.');
+}
+
+// ── INVOICE PICKER ─────────────────────────────────────────────
+function openInvoicePicker() {
+  invPickSelected = new Set(getLinkedInvoices(currentProjectId).map(i => i.id));
+  document.getElementById('invPickSearch').value = '';
+  renderInvPicker();
+  document.getElementById('invoicePickerModal').classList.add('open');
+}
+function closeInvoicePicker() { document.getElementById('invoicePickerModal').classList.remove('open'); }
+
+function renderInvPicker() {
+  const q = document.getElementById('invPickSearch').value.toLowerCase();
+  const rows = allInvoices.filter(i =>
+    !q || [i.invNum, i.invoice_num, i.vendor, i.desc, i.description].some(f => (f||'').toLowerCase().includes(q))
+  );
+  const list = document.getElementById('invPickList');
+  if (!rows.length) { list.innerHTML = '<div class="picker-empty">No invoices found.</div>'; return; }
+  list.innerHTML = rows.map(i => {
+    const sel = invPickSelected.has(i.id);
+    return `<div class="picker-item${sel?' selected':''}" onclick="toggleInvPick('${i.id}',this)">
+      <input type="checkbox" class="picker-checkbox" ${sel?'checked':''} onclick="toggleInvPick('${i.id}',this.closest('.picker-item'))">
+      <div class="picker-item-info">
+        <div class="picker-item-title">${esc(i.invNum||i.invoice_num||'—')} — ${esc(i.vendor||'—')}</div>
+        <div class="picker-item-meta">
+          <span>SAR ${Number(i.amount||0).toLocaleString()}</span>
+          <span>${esc(i.status||'Draft')}</span>
+          <span>Due ${fmt(i.dueDate||i.due_date)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('invPickCount').textContent = invPickSelected.size + ' selected';
+}
+
+function toggleInvPick(id, el) {
+  if (invPickSelected.has(id)) { invPickSelected.delete(id); el.classList.remove('selected'); el.querySelector('input').checked=false; }
+  else { invPickSelected.add(id); el.classList.add('selected'); el.querySelector('input').checked=true; }
+  document.getElementById('invPickCount').textContent = invPickSelected.size + ' selected';
+}
+
+async function confirmLinkInvoices() {
+  const projId = currentProjectId;
+  // unlink removed ones, link added ones
+  for (const inv of allInvoices) {
+    const wasLinked = inv.project_id === projId;
+    const nowLinked = invPickSelected.has(inv.id);
+    if (wasLinked !== nowLinked) {
+      if (nowLinked) inv.project_id = projId; else delete inv.project_id;
+      await DB.saveInvoice(inv);
     }
   }
+  allInvoices = await DB.getInvoices();
+  renderLinkedInvoices(projId);
+  closeInvoicePicker();
+  toast(`${invPickSelected.size} invoice(s) linked.`);
+}
 
-  const _gsGet    = async sheet       => { const r = await _gsReq('get', sheet); return r.rows || []; };
-  const _gsUpsert = async (sheet, d)  => {
-    if (!d.id) d.id = (crypto.randomUUID ? crypto.randomUUID() : 'gs-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7));
-    const r = await _gsReq('upsert', sheet, d);
-    return { data: d, error: r.error ? { message: r.error } : null };
-  };
-  const _gsDel    = async (sheet, id) => { const r = await _gsReq('delete', sheet, null, id); return { error: r.error ? { message: r.error } : null }; };
+// ── VISIT PICKER ───────────────────────────────────────────────
+function openVisitPicker() {
+  visPickSelected = new Set(getLinkedVisits(currentProjectId).map(v => v.id));
+  document.getElementById('visPickSearch').value = '';
+  renderVisPicker();
+  document.getElementById('visitPickerModal').classList.add('open');
+}
+function closeVisitPicker() { document.getElementById('visitPickerModal').classList.remove('open'); }
 
-  DB.getSites      = async () => (await _gsGet('Sites')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveSite      = async s  => _gsUpsert('Sites', s);
-  DB.deleteSite    = async id => _gsDel('Sites', id);
-  DB.getSiteNames  = async () => (await _gsGet('Sites')).filter(r => r.status === 'active').map(r => r.name).sort();
+function renderVisPicker() {
+  const q = document.getElementById('visPickSearch').value.toLowerCase();
+  const rows = allVisits.filter(v =>
+    !q || [v.vendor, v.site, v.description, v.notes].some(f => (f||'').toLowerCase().includes(q))
+  );
+  const list = document.getElementById('visPickList');
+  if (!rows.length) { list.innerHTML = '<div class="picker-empty">No field work records found.</div>'; return; }
+  list.innerHTML = rows.map(v => {
+    const sel = visPickSelected.has(v.id);
+    return `<div class="picker-item${sel?' selected':''}" onclick="toggleVisPick('${v.id}',this)">
+      <input type="checkbox" class="picker-checkbox" ${sel?'checked':''} onclick="toggleVisPick('${v.id}',this.closest('.picker-item'))">
+      <div class="picker-item-info">
+        <div class="picker-item-title">${esc(v.vendor||'—')} @ ${esc(v.site||'—')}</div>
+        <div class="picker-item-meta">
+          <span>${fmt(v.date)}</span>
+          <span>SAR ${Number(v.amount||0).toLocaleString()}</span>
+          <span>${esc(v.status||'Pending')}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('visPickCount').textContent = visPickSelected.size + ' selected';
+}
 
-  DB.getVendors     = async () => (await _gsGet('Vendors')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveVendor     = async v  => _gsUpsert('Vendors', v);
-  DB.deleteVendor   = async id => _gsDel('Vendors', id);
-  DB.getVendorNames = async () => (await _gsGet('Vendors')).filter(r => r.status === 'Active').map(r => r.name).sort();
+function toggleVisPick(id, el) {
+  if (visPickSelected.has(id)) { visPickSelected.delete(id); el.classList.remove('selected'); el.querySelector('input').checked=false; }
+  else { visPickSelected.add(id); el.classList.add('selected'); el.querySelector('input').checked=true; }
+  document.getElementById('visPickCount').textContent = visPickSelected.size + ' selected';
+}
 
-  DB.getRoles    = async () => (await _gsGet('Roles')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveRole    = async r  => _gsUpsert('Roles', r);
-  DB.deleteRole  = async id => _gsDel('Roles', id);
-
-  DB.getUsers    = async () => (await _gsGet('Users')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveUser    = async u  => _gsUpsert('Users', u);
-  DB.deleteUser  = async id => _gsDel('Users', id);
-
-  DB.getTasks    = async () => (await _gsGet('Tasks')).sort((a,b) => (b.created||0) - (a.created||0));
-  DB.saveTask    = async t  => _gsUpsert('Tasks', t);
-  DB.deleteTask  = async id => _gsDel('Tasks', id);
-
-  DB.getVisits   = async () => (await _gsGet('Visits')).sort((a,b) => (b.date||'').localeCompare(a.date||''));
-  DB.saveVisit   = async v  => _gsUpsert('Visits', v);
-  DB.deleteVisit = async id => _gsDel('Visits', id);
-
-  DB.getInvoices   = async () => (await _gsGet('Invoices')).sort((a,b) => (b.created||0) - (a.created||0));
-  DB.saveInvoice   = async i  => _gsUpsert('Invoices', i);
-  DB.deleteInvoice = async id => _gsDel('Invoices', id);
-
-  DB.getDevices   = async () => (await _gsGet('Devices')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveDevice   = async d  => _gsUpsert('Devices', d);
-  DB.deleteDevice = async id => _gsDel('Devices', id);
-
-  DB.getProjects   = async () => (await _gsGet('Projects')).sort((a,b) => (b.created_at||'').localeCompare(a.created_at||''));
-  DB.saveProject   = async p  => _gsUpsert('Projects', p);
-  DB.deleteProject = async id => _gsDel('Projects', id);
-
-  DB.getWorkflows   = async () => (await _gsGet('Workflows')).sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  DB.saveWorkflow   = async w  => _gsUpsert('Workflows', w);
-  DB.deleteWorkflow = async id => _gsDel('Workflows', id);
-
-  DB.getCapex    = async () => (await _gsGet('Capex')).sort((a,b) => (b.created||0) - (a.created||0));
-  DB.saveCapex   = async c  => _gsUpsert('Capex', c);
-  DB.deleteCapex = async id => _gsDel('Capex', id);
-
-  DB.getOpex    = async () => (await _gsGet('Opex')).sort((a,b) => (b.created||0) - (a.created||0));
-  DB.saveOpex   = async o  => _gsUpsert('Opex', o);
-  DB.deleteOpex = async id => _gsDel('Opex', id);
-
-  // Attachments are not supported in Sheets mode (no file storage)
-  DB.getAttachments   = async () => [];
-  DB.uploadFile       = async () => ({ path: null, url: null, error: { message: 'File uploads are not supported in Google Sheets mode.' } });
-  DB.getFileUrl       = () => null;
-  DB.deleteFile       = async () => {};
-
-  console.log('[TaskFlow] Google Sheets mode active.');
-})();
-
-// ── WARNING BANNER ─────────────────────────────────────────────
-// Only shown when Supabase is wanted but not configured.
-document.addEventListener('DOMContentLoaded', () => {
-  const cfg   = window.TASKFLOW_CONFIG || {};
-  const gsUrl = (cfg.sheetsUrl || '').trim();
-  const gsActive = gsUrl && gsUrl !== 'YOUR_APPS_SCRIPT_URL';
-  if (!cfg.localOnly && !gsActive && !DB.isConfigured()) {
-    const banner = document.createElement('div');
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#1a1d2e;text-align:center;padding:8px 16px;font-size:0.82rem;font-weight:600;font-family:system-ui';
-    banner.textContent = '⚠️ No database configured — open config.js and set sheetsUrl, localOnly, or Supabase credentials.';
-    document.body.prepend(banner);
+async function confirmLinkVisits() {
+  const projId = currentProjectId;
+  for (const v of allVisits) {
+    const wasLinked = v.project_id === projId;
+    const nowLinked = visPickSelected.has(v.id);
+    if (wasLinked !== nowLinked) {
+      if (nowLinked) v.project_id = projId; else delete v.project_id;
+      await DB.saveVisit(v);
+    }
   }
+  allVisits = await DB.getVisits();
+  renderLinkedVisits(projId);
+  closeVisitPicker();
+  toast(`${visPickSelected.size} field work record(s) linked.`);
+}
+
+// ── PROJECT FORM ───────────────────────────────────────────────
+let editingProjectId = null;
+let selectedStatus = 'planning';
+
+function selectStatus(s) {
+  selectedStatus = s;
+  ['planning','active','hold','completed','cancelled'].forEach(st => {
+    const el = document.getElementById('s' + st.charAt(0).toUpperCase() + st.slice(1));
+    if (el) el.className = 'status-opt' + (st === s ? ` sel-${st}` : '');
+  });
+}
+
+function openProjectModal(id) {
+  editingProjectId = id || null;
+  const p = id ? projects.find(x => x.id === id) : null;
+  document.getElementById('modalFormTitle').textContent = p ? '✎ Edit Project' : 'New Project';
+  document.getElementById('pfSubmitBtn').textContent = p ? 'Save Changes' : 'Create Project';
+  document.getElementById('pfName').value     = p ? p.name       : '';
+  document.getElementById('pfCategory').value = p ? (p.category||'Other') : 'IT Infrastructure';
+  document.getElementById('pfPriority').value = p ? (p.priority||'Medium') : 'Medium';
+  document.getElementById('pfSite').value     = p ? (p.site||'')          : '';
+  document.getElementById('pfAssigned').value = p ? (p.assigned_to||'')   : '';
+  document.getElementById('pfStart').value    = p ? (p.start_date||'')    : '';
+  document.getElementById('pfEnd').value      = p ? (p.end_date||'')      : '';
+  document.getElementById('pfNotes').value    = p ? (p.notes||'')         : '';
+  const pct = p ? (p.progress||0) : 0;
+  document.getElementById('pfProgress').value = pct;
+  document.getElementById('pfProgressVal').textContent = pct + '%';
+  selectStatus(p ? (p.status||'planning') : 'planning');
+  document.getElementById('projectModal').classList.add('open');
+  setTimeout(() => document.getElementById('pfName').focus(), 50);
+}
+function closeProjectModal() { document.getElementById('projectModal').classList.remove('open'); }
+
+async function submitProjectForm() {
+  const name = document.getElementById('pfName').value.trim();
+  if (!name) { toast('Project name is required.', 'err'); document.getElementById('pfName').focus(); return; }
+  const record = {
+    name,
+    category:    document.getElementById('pfCategory').value,
+    priority:    document.getElementById('pfPriority').value,
+    site:        document.getElementById('pfSite').value.trim(),
+    assigned_to: document.getElementById('pfAssigned').value.trim(),
+    start_date:  document.getElementById('pfStart').value || null,
+    end_date:    document.getElementById('pfEnd').value   || null,
+    progress:    parseInt(document.getElementById('pfProgress').value, 10),
+    status:      selectedStatus,
+    notes:       document.getElementById('pfNotes').value.trim(),
+  };
+  if (editingProjectId) record.id = editingProjectId;
+  const { error } = await DB.saveProject(record);
+  if (error) { toast('Save failed: ' + error.message, 'err'); return; }
+  projects = await DB.getProjects();
+  updateStats();
+  renderList();
+  closeProjectModal();
+  toast(editingProjectId ? 'Project updated.' : 'Project created.');
+  if (editingProjectId && currentProjectId === editingProjectId) openDetail(editingProjectId);
+}
+
+// ── DELETE ─────────────────────────────────────────────────────
+let _confirmCb = null;
+function confirmDeleteProject(id) {
+  const p = projects.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('confirmTitle').textContent = 'Delete Project?';
+  document.getElementById('confirmMsg').textContent   = `"${p.name}" will be permanently deleted.`;
+  _confirmCb = async () => {
+    const { error } = await DB.deleteProject(id);
+    if (error) { toast('Delete failed: ' + error.message, 'err'); return; }
+    projects = await DB.getProjects();
+    updateStats();
+    showList();
+    toast('Project deleted.');
+  };
+  document.getElementById('confirmOkBtn').onclick = async () => { await _confirmCb(); closeConfirm(); };
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirmModal').classList.remove('open'); }
+
+// Close overlays on backdrop click
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('open'); });
 });
+
+// ── INIT ───────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
