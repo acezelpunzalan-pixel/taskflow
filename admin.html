@@ -344,7 +344,9 @@
           <select id="vfCategory">
             <option>Electrical</option><option>Plumbing</option><option>HVAC</option>
             <option>Security</option><option>Cleaning</option><option>IT / SaaS</option>
-            <option>Landscaping</option><option>Civil</option><option>Other</option>
+            <option>Landscaping</option><option>Civil</option>
+            <option>CCTV Maintenance</option><option>Network</option><option>IT Civil</option>
+            <option>Other</option>
           </select>
         </div>
         <div class="fg"><label>Contact Person</label><input type="text" id="vfContact" placeholder="Full name" /></div>
@@ -823,7 +825,7 @@
   // ══════════════════════════════════════════════════════════
   let vendors = [];
   let vendorEditingId = null, vendorStatusForm = 'active', vendorFilter = 'all';
-  const vendorIcons = {'Electrical':'⚡','Plumbing':'🔧','HVAC':'❄','Security':'🔒','Cleaning':'🧹','IT / SaaS':'💻','Landscaping':'🌿','Civil':'🏗','Other':'🏭'};
+  const vendorIcons = {'Electrical':'⚡','Plumbing':'🔧','HVAC':'❄','Security':'🔒','Cleaning':'🧹','IT / SaaS':'💻','Landscaping':'🌿','Civil':'🏗','CCTV Maintenance':'📹','Network':'🌐','IT Civil':'🏢','Other':'🏭'};
 
   // seed runs once from async init() below if empty
 
