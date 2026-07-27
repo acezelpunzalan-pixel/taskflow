@@ -181,9 +181,9 @@
 
   <!-- STATS -->
   <div class="stats">
-    <div class="sc c0"><div class="sc-label">Total Budget</div><div class="sc-val" id="stBudget">$0</div></div>
-    <div class="sc c1"><div class="sc-label">Total Spent</div><div class="sc-val" id="stSpent">$0</div></div>
-    <div class="sc c2"><div class="sc-label">Remaining</div><div class="sc-val" id="stRemaining">$0</div></div>
+    <div class="sc c0"><div class="sc-label">Total Budget</div><div class="sc-val" id="stBudget">SAR 0</div></div>
+    <div class="sc c1"><div class="sc-label">Total Spent</div><div class="sc-val" id="stSpent">SAR 0</div></div>
+    <div class="sc c2"><div class="sc-label">Remaining</div><div class="sc-val" id="stRemaining">SAR 0</div></div>
     <div class="sc c3"><div class="sc-label">Utilization</div><div class="sc-val" id="stUtil">0%</div></div>
     <div class="sc c4"><div class="sc-label">Items</div><div class="sc-val" id="stItems">0</div></div>
     <div class="sc c5"><div class="sc-label">Over Budget</div><div class="sc-val" id="stOver">0</div></div>
@@ -262,11 +262,11 @@
         <input type="number" id="fYear" min="2020" max="2040" placeholder="2026">
       </div>
       <div class="fg">
-        <label>Budget ($)</label>
+        <label>Budget (SAR)</label>
         <input type="number" id="fBudget" min="0" step="0.01" placeholder="0.00">
       </div>
       <div class="fg">
-        <label>Spent ($)</label>
+        <label>Spent (SAR)</label>
         <input type="number" id="fSpent" min="0" step="0.01" placeholder="0.00">
       </div>
       <div class="fg">
@@ -321,8 +321,8 @@
 // ── UTILS ──────────────────────────────────────────────────
 function uid()  { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
-function fmtD(n){ return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmt(n) { return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtD(n){ return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function toast(msg,type='ok'){
   const el=document.getElementById('toast');
   el.textContent=msg; el.className=`toast show ${type}`;
