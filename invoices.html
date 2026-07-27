@@ -732,6 +732,7 @@
 
   // ── DATA ────────────────────────────────────────────────────────
   let invoices = [];
+  let adminVendorNames = [];
   let editingId = null;
   let activeFilter = 'all';
   let sortCol = 'invDate';
@@ -1088,8 +1089,8 @@
       return `<div class="aging-seg" style="background:${s.c};width:${pct}%;color:#fff;padding:0 8px">${pct>8?s.label:''}</div>`;
     }).join('') || '<div class="aging-seg" style="background:var(--surface2);width:100%;color:var(--muted)">No unpaid invoices</div>';
 
-    // Vendor datalist
-    const vendors = [...new Set(invoices.map(v=>v.vendor).filter(Boolean))];
+    // Vendor datalist — admin-managed vendors plus any vendor names already used on past invoices
+    const vendors = [...new Set([...adminVendorNames, ...invoices.map(v=>v.vendor).filter(Boolean)])].sort();
     document.getElementById('vendorList').innerHTML = vendors.map(v=>`<option value="${esc(v)}">`).join('');
 
     renderSaaSDashboard();
@@ -1422,6 +1423,7 @@
           for (const inv of _defaultInvoices()) await DB.saveInvoice(inv);
           invoices = await DB.getInvoices();
         }
+        adminVendorNames = await DB.getVendorNames();
         // Migration: ensure all existing invoices have department/created_by fields
         invoices.forEach(inv => {
           if (!inv.hasOwnProperty('department')) inv.department = '';
