@@ -307,8 +307,8 @@
     <div class="sc c1"><div class="sc-label">Pending Approval</div><div class="sc-val" id="stPending">0</div></div>
     <div class="sc c2"><div class="sc-label">Approved</div><div class="sc-val" id="stApproved">0</div></div>
     <div class="sc c3"><div class="sc-label">Overdue</div><div class="sc-val" id="stOverdue">0</div></div>
-    <div class="sc c4"><div class="sc-label">Unpaid Balance</div><div class="sc-val" id="stUnpaid">$0</div></div>
-    <div class="sc c5"><div class="sc-label">Total Paid</div><div class="sc-val" id="stPaid">$0</div></div>
+    <div class="sc c4"><div class="sc-label">Unpaid Balance</div><div class="sc-val" id="stUnpaid">SAR 0</div></div>
+    <div class="sc c5"><div class="sc-label">Total Paid</div><div class="sc-val" id="stPaid">SAR 0</div></div>
   </div>
 
   <!-- AGING CHART -->
@@ -342,8 +342,8 @@
     </div>
     <div class="saas-kpis">
       <div class="saas-kpi"><div class="saas-kpi-label">SaaS Vendors</div><div class="saas-kpi-val" id="skVendors" style="color:var(--accent2)">0</div></div>
-      <div class="saas-kpi"><div class="saas-kpi-label">Period Spend</div><div class="saas-kpi-val" id="skSpend" style="color:var(--green)">$0</div></div>
-      <div class="saas-kpi"><div class="saas-kpi-label">Avg / Month</div><div class="saas-kpi-val" id="skAvg" style="color:var(--blue)">$0</div></div>
+      <div class="saas-kpi"><div class="saas-kpi-label">Period Spend</div><div class="saas-kpi-val" id="skSpend" style="color:var(--green)">SAR 0</div></div>
+      <div class="saas-kpi"><div class="saas-kpi-label">Avg / Month</div><div class="saas-kpi-val" id="skAvg" style="color:var(--blue)">SAR 0</div></div>
       <div class="saas-kpi"><div class="saas-kpi-label">Week Coverage</div><div class="saas-kpi-val" id="skCoverage" style="color:var(--yellow)">0%</div></div>
       <div class="saas-kpi"><div class="saas-kpi-label">Week Gaps</div><div class="saas-kpi-val" id="skGaps" style="color:var(--red)">0</div></div>
     </div>
@@ -380,7 +380,7 @@
         <input type="text" id="nPO" placeholder="PO-0001" />
       </div>
       <div class="fg">
-        <label>Amount ($)</label>
+        <label>Amount (SAR)</label>
         <input type="number" id="nAmount" placeholder="0.00" min="0" step="0.01" />
       </div>
       <div class="fg">
@@ -519,7 +519,7 @@
         <input type="text" id="ePO" />
       </div>
       <div class="fg">
-        <label>Amount ($)</label>
+        <label>Amount (SAR)</label>
         <input type="number" id="eAmount" min="0" step="0.01" />
       </div>
       <div class="fg">
@@ -748,7 +748,7 @@
     const invoices = [
       mk('INV-2024-001','CoolTech Services','HVAC preventive maintenance','Field Work','PO-101',450.00,past30,dateMinus(t,5),'paid',[{type:'comment',text:'Received invoice.',date:past30},{type:'approved',text:'Looks good, approved.',date:dateMinus(t,20)},{type:'paid',text:'Payment processed.',date:dateMinus(t,5)}],'',true,true),
       mk('INV-2024-002','Volt Masters Inc.','Electrical panel inspection','Field Work','PO-102',320.00,past10,due7,'submitted',[{type:'comment',text:'Invoice submitted for review.',date:past10}],'',true,false),
-      mk('INV-2024-003','AquaFix Co.','Plumbing repair – leak fix','Maintenance','PO-103',210.50,past30,dateMinus(t,15),'rejected',[{type:'comment',text:'Amount higher than quoted.',date:past30},{type:'rejected',text:'Disputed: quoted was $150, invoiced $210.50.',date:dateMinus(t,25)}],'',false,false),
+      mk('INV-2024-003','AquaFix Co.','Plumbing repair – leak fix','Maintenance','PO-103',210.50,past30,dateMinus(t,15),'rejected',[{type:'comment',text:'Amount higher than quoted.',date:past30},{type:'rejected',text:'Disputed: quoted was SAR 150, invoiced SAR 210.50.',date:dateMinus(t,25)}],'',false,false),
       mk('INV-2024-004','SafeGuard Systems','Fire suppression annual check','Field Work','PO-104',580.00,dateMinus(t,60),dateMinus(t,30),'paid',[{type:'approved',text:'Auto-approved per contract.',date:dateMinus(t,55)},{type:'paid',text:'Paid via bank transfer.',date:dateMinus(t,30)}],'',true,true),
       mk('INV-2024-005','Volt Masters Inc.','Generator service & fuel check','Maintenance','PO-105',195.00,past5,due14,'approved',[{type:'approved',text:'Approved — within budget.',date:past5}],'',true,false),
       mk('INV-2024-006','CleanPro Services','Monthly janitorial contract','Supply','PO-106',750.00,dateMinus(t,45),dateMinus(t,15),'approved',[{type:'approved',text:'Recurring contract, approved.',date:dateMinus(t,44)}],'',true,true),
@@ -777,7 +777,7 @@
     return { id: uid(), invNum, vendor, desc, category, po, amount, invDate, dueDate, status, trail: trail||[], file: file||'', attachment_path:'', attachment_name:'', gr: !!gr, booked: !!booked, department: department||'', created_by: createdBy||'', created: Date.now() };
   }
   function uid() { return Math.random().toString(36).slice(2)+Date.now().toString(36); }
-  function fmt(n) { return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function fmt(n) { return 'SAR '+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function datePlus(d,n) { const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().split('T')[0]; }
   function dateMinus(d,n) { return datePlus(d,-n); }
@@ -1277,7 +1277,7 @@
     months.forEach(({ key }) => {
       const mSpend = saasActive.filter(i => i.invDate && i.invDate.startsWith(key)).reduce((s,i)=>s+i.amount,0);
       const isFuture = key > nowKey;
-      html += `<td class="cov-month-total" style="${isFuture?'color:var(--border)':''}">${isFuture||mSpend===0?'—':fmt(mSpend).replace('$','')}</td>`;
+      html += `<td class="cov-month-total" style="${isFuture?'color:var(--border)':''}">${isFuture||mSpend===0?'—':fmt(mSpend).replace('SAR ','')}</td>`;
     });
     html += `<td class="cov-row-total">${fmt(periodSpend)}</td><td></td></tr>`;
 
