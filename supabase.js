@@ -575,13 +575,246 @@ if (!DB.isConfigured()) {
   console.log('[TaskFlow] Google Sheets mode active.');
 })();
 
+// ── LOCAL SPREADSHEET FILE ADAPTER ─────────────────────────────
+// When config.localFile is true, all DB.* methods read/write a single
+// .xlsx workbook on the user's own computer via the File System Access
+// API (Chrome/Edge only — no Firefox/Safari/mobile support). The file
+// handle is persisted in IndexedDB so the file only needs to be picked
+// once; later visits silently re-check permission and only show a
+// "reconnect" prompt if the browser has forgotten the grant.
+(function () {
+  const _cfg2 = window.TASKFLOW_CONFIG || {};
+  if (!_cfg2.localFile) return;
+
+  const IDB_NAME = 'taskflow-filehandle-db';
+  const IDB_STORE = 'handles';
+  const HANDLE_KEY = 'spreadsheet';
+  const SHEET_NAMES = ['Sites','Vendors','Roles','Users','Tasks','Visits','Invoices','Devices','Projects','Workflows','Capex','Opex'];
+
+  function idbOpen() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbGet(key) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbSet(key, val) {
+    const db = await idbOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(val, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) return resolve();
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Failed to load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  let _fileHandle = null;
+  let _workbook = null;
+
+  function emptyWorkbook() {
+    const wb = XLSX.utils.book_new();
+    SHEET_NAMES.forEach(name => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([]), name));
+    return wb;
+  }
+  function ensureAllSheets(wb) {
+    SHEET_NAMES.forEach(name => {
+      if (!wb.Sheets[name]) {
+        wb.Sheets[name] = XLSX.utils.json_to_sheet([]);
+        if (!wb.SheetNames.includes(name)) wb.SheetNames.push(name);
+      }
+    });
+    return wb;
+  }
+  function sheetToRows(name) {
+    const ws = _workbook.Sheets[name];
+    if (!ws) return [];
+    return XLSX.utils.sheet_to_json(ws, { defval: '' });
+  }
+  function rowsToSheet(name, rows) {
+    _workbook.Sheets[name] = XLSX.utils.json_to_sheet(rows);
+    if (!_workbook.SheetNames.includes(name)) _workbook.SheetNames.push(name);
+  }
+  async function persist() {
+    if (!_fileHandle) return;
+    const wbout = XLSX.write(_workbook, { bookType: 'xlsx', type: 'array' });
+    const writable = await _fileHandle.createWritable();
+    await writable.write(wbout);
+    await writable.close();
+  }
+  async function loadFromHandle(handle) {
+    const file = await handle.getFile();
+    const buf = await file.arrayBuffer();
+    _workbook = buf.byteLength === 0 ? emptyWorkbook() : ensureAllSheets(XLSX.read(buf, { type: 'array' }));
+    _fileHandle = handle;
+  }
+
+  function showBar(message, onClick) {
+    let bar = document.getElementById('tf-file-connect-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'tf-file-connect-bar';
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#6c63ff;color:#fff;text-align:center;padding:10px 16px;font-size:0.85rem;font-weight:600;font-family:system-ui;cursor:pointer';
+      document.body.prepend(bar);
+    }
+    bar.textContent = message;
+    bar.onclick = async () => {
+      bar.textContent = 'Working…';
+      try { await onClick(); bar.remove(); }
+      catch (e) { bar.textContent = '⚠ ' + e.message + ' — click to retry'; }
+    };
+  }
+
+  async function pickNewFile() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'Excel Workbook', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }],
+        });
+        return handle;
+      } catch (e) { /* user hit cancel in the open dialog — offer Save As instead */ }
+    }
+    return window.showSaveFilePicker({
+      suggestedName: 'taskflow-data.xlsx',
+      types: [{ description: 'Excel Workbook', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }],
+    });
+  }
+
+  const _ready = (async () => {
+    if (!window.showOpenFilePicker || !window.showSaveFilePicker) {
+      console.warn('[TaskFlow] File System Access API not supported — local spreadsheet mode needs Chrome or Edge.');
+      showBar('⚠ This browser can\'t open local files this way — use Chrome or Edge.', async () => { throw new Error('Unsupported browser'); });
+      _workbook = { _unsupported: true };
+      return;
+    }
+
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+
+    const stored = await idbGet(HANDLE_KEY).catch(() => null);
+    if (stored) {
+      const granted = await stored.queryPermission({ mode: 'readwrite' }).catch(() => 'denied');
+      if (granted === 'granted') {
+        await loadFromHandle(stored);
+        return;
+      }
+      // Permission needs a fresh user gesture to reconfirm — same file, no new picker.
+      await new Promise((resolve) => {
+        showBar('🔒 Click to reconnect your TaskFlow spreadsheet file', async () => {
+          const re = await stored.requestPermission({ mode: 'readwrite' });
+          if (re !== 'granted') throw new Error('Permission denied');
+          await loadFromHandle(stored);
+          resolve();
+        });
+      });
+      return;
+    }
+
+    // First time ever — needs a user click to open the file picker.
+    await new Promise((resolve) => {
+      showBar('📄 Click to connect your TaskFlow spreadsheet file', async () => {
+        const handle = await pickNewFile();
+        await idbSet(HANDLE_KEY, handle);
+        await loadFromHandle(handle);
+        resolve();
+      });
+    });
+  })();
+
+  const _q = fn => async (...args) => { await _ready; return fn(...args); };
+
+  function withId(rec) {
+    if (!rec.id) rec.id = (crypto.randomUUID ? crypto.randomUUID() : 'lf-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
+    return rec;
+  }
+
+  function makeCrud(sheetName, sortFn) {
+    return {
+      getAll: _q(async () => {
+        let rows = sheetToRows(sheetName);
+        return sortFn ? rows.sort(sortFn) : rows;
+      }),
+      save: _q(async (rec) => {
+        const rows = sheetToRows(sheetName);
+        withId(rec);
+        const i = rows.findIndex(r => r.id === rec.id);
+        if (i >= 0) rows[i] = { ...rows[i], ...rec }; else rows.push(rec);
+        rowsToSheet(sheetName, rows);
+        await persist();
+        return { data: rec, error: null };
+      }),
+      del: _q(async (id) => {
+        rowsToSheet(sheetName, sheetToRows(sheetName).filter(r => r.id !== id));
+        await persist();
+        return { error: null };
+      }),
+    };
+  }
+
+  const _sites    = makeCrud('Sites',     (a, b) => (a.name || '').localeCompare(b.name || ''));
+  const _vendors  = makeCrud('Vendors',   (a, b) => (a.name || '').localeCompare(b.name || ''));
+  const _roles    = makeCrud('Roles',     (a, b) => (a.name || '').localeCompare(b.name || ''));
+  const _users    = makeCrud('Users',     (a, b) => (a.name || '').localeCompare(b.name || ''));
+  const _tasks    = makeCrud('Tasks',     (a, b) => (b.created || 0) - (a.created || 0));
+  const _visits   = makeCrud('Visits',    (a, b) => (b.date || '').localeCompare(a.date || ''));
+  const _invoices = makeCrud('Invoices',  (a, b) => (b.created || 0) - (a.created || 0));
+  const _devices  = makeCrud('Devices',   (a, b) => (a.name || '').localeCompare(b.name || ''));
+  const _projects = makeCrud('Projects',  (a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  const _workflows= makeCrud('Workflows', (a, b) => (a.name || '').localeCompare(b.name || ''));
+  const _capex    = makeCrud('Capex',     (a, b) => (b.created || 0) - (a.created || 0));
+  const _opex     = makeCrud('Opex',      (a, b) => (b.created || 0) - (a.created || 0));
+
+  DB.getSites = _sites.getAll; DB.saveSite = _sites.save; DB.deleteSite = _sites.del;
+  DB.getSiteNames = _q(async () => sheetToRows('Sites').filter(r => r.status === 'active').map(r => r.name).sort());
+
+  DB.getVendors = _vendors.getAll; DB.saveVendor = _vendors.save; DB.deleteVendor = _vendors.del;
+  DB.getVendorNames = _q(async () => sheetToRows('Vendors').filter(r => r.status === 'active').map(r => r.name).sort());
+
+  DB.getRoles = _roles.getAll; DB.saveRole = _roles.save; DB.deleteRole = _roles.del;
+  DB.getUsers = _users.getAll; DB.saveUser = _users.save; DB.deleteUser = _users.del;
+  DB.getTasks = _tasks.getAll; DB.saveTask = _tasks.save; DB.deleteTask = _tasks.del;
+  DB.getVisits = _visits.getAll; DB.saveVisit = _visits.save; DB.deleteVisit = _visits.del;
+  DB.getInvoices = _invoices.getAll; DB.saveInvoice = _invoices.save; DB.deleteInvoice = _invoices.del;
+  DB.getDevices = _devices.getAll; DB.saveDevice = _devices.save; DB.deleteDevice = _devices.del;
+  DB.getProjects = _projects.getAll; DB.saveProject = _projects.save; DB.deleteProject = _projects.del;
+  DB.getWorkflows = _workflows.getAll; DB.saveWorkflow = _workflows.save; DB.deleteWorkflow = _workflows.del;
+  DB.getCapex = _capex.getAll; DB.saveCapex = _capex.save; DB.deleteCapex = _capex.del;
+  DB.getOpex = _opex.getAll; DB.saveOpex = _opex.save; DB.deleteOpex = _opex.del;
+
+  DB.getAttachments = async () => [];
+  DB.uploadFile = async () => ({ path: null, url: null, error: { message: 'File uploads are not supported in local spreadsheet mode.' } });
+  DB.getFileUrl = () => null;
+  DB.deleteFile = async () => {};
+
+  console.log('[TaskFlow] Local spreadsheet file mode active.');
+})();
+
 // ── WARNING BANNER ─────────────────────────────────────────────
 // Only shown when Supabase is wanted but not configured.
 document.addEventListener('DOMContentLoaded', () => {
   const cfg   = window.TASKFLOW_CONFIG || {};
   const gsUrl = (cfg.sheetsUrl || '').trim();
   const gsActive = gsUrl && gsUrl !== 'YOUR_APPS_SCRIPT_URL';
-  if (!cfg.localOnly && !gsActive && !DB.isConfigured()) {
+  if (!cfg.localOnly && !cfg.localFile && !gsActive && !DB.isConfigured()) {
     const banner = document.createElement('div');
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#1a1d2e;text-align:center;padding:8px 16px;font-size:0.82rem;font-weight:600;font-family:system-ui';
     banner.textContent = '⚠️ No database configured — open config.js and set sheetsUrl, localOnly, or Supabase credentials.';
