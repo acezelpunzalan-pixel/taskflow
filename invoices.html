@@ -1419,10 +1419,7 @@
     if (window.CURRENT_USER || tries <= 0) {
       (async () => {
         invoices = await DB.getInvoices();
-        if (!invoices.length) {
-          for (const inv of _defaultInvoices()) await DB.saveInvoice(inv);
-          invoices = await DB.getInvoices();
-        }
+        // Auto-seed demo data disabled — TaskFlow starts blank now.
         adminVendorNames = await DB.getVendorNames();
         // Migration: ensure all existing invoices have department/created_by fields
         invoices.forEach(inv => {
