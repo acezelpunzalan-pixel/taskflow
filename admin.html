@@ -543,6 +543,13 @@
       <input type="file" id="importFileInput" accept="application/json,.json" style="display:none" onchange="importAllData(this.files[0])">
       <button class="btn btn-ghost" onclick="document.getElementById('importFileInput').click()">⬆ Choose File to Import</button>
       <div id="importStatus" style="margin-top:14px;font-size:0.86rem"></div>
+
+      <h3 style="margin:28px 0 6px;color:var(--red)">🗑 Clear All Data</h3>
+      <p style="color:var(--muted);font-size:0.86rem;margin:0 0 14px">
+        Permanently deletes every site, vendor, user, role, task, field visit, invoice, device, CapEx, OpEx, and workflow record. Use this to wipe demo/sample data and start with a clean slate. <strong>This cannot be undone</strong> — export a backup first if unsure.
+      </p>
+      <button class="btn" style="background:var(--red)" onclick="clearAllData()">🗑 Delete Everything</button>
+      <div id="clearStatus" style="margin-top:14px;font-size:0.86rem"></div>
     </div>
   </div>
 
@@ -627,6 +634,7 @@
       capex:      await DB.getCapex(),
       opex:       await DB.getOpex(),
       workflows:  await DB.getWorkflows(),
+      projects:   await DB.getProjects(),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -644,8 +652,38 @@
     sites:     DB.saveSite,     vendors:  DB.saveVendor,  users:  DB.saveUser,
     roles:     DB.saveRole,     tasks:    DB.saveTask,    visits: DB.saveVisit,
     invoices:  DB.saveInvoice,  devices:  DB.saveDevice,  capex:  DB.saveCapex,
-    opex:      DB.saveOpex,     workflows: DB.saveWorkflow,
+    opex:      DB.saveOpex,     workflows: DB.saveWorkflow, projects: DB.saveProject,
   };
+
+  async function clearAllData() {
+    const statusEl = document.getElementById('clearStatus');
+    const typed = prompt('This will permanently delete ALL data in TaskFlow. Type DELETE to confirm.');
+    if (typed !== 'DELETE') {
+      statusEl.textContent = 'Cancelled — nothing was deleted.';
+      statusEl.style.color = 'var(--muted)';
+      return;
+    }
+    statusEl.textContent = 'Deleting…';
+    statusEl.style.color = 'var(--muted)';
+    const deleteMap = {
+      sites: DB.deleteSite, vendors: DB.deleteVendor, users: DB.deleteUser, roles: DB.deleteRole,
+      tasks: DB.deleteTask, visits: DB.deleteVisit, invoices: DB.deleteInvoice, devices: DB.deleteDevice,
+      capex: DB.deleteCapex, opex: DB.deleteOpex, workflows: DB.deleteWorkflow, projects: DB.deleteProject,
+    };
+    const getMap = {
+      sites: DB.getSites, vendors: DB.getVendors, users: DB.getUsers, roles: DB.getRoles,
+      tasks: DB.getTasks, visits: DB.getVisits, invoices: DB.getInvoices, devices: DB.getDevices,
+      capex: DB.getCapex, opex: DB.getOpex, workflows: DB.getWorkflows, projects: DB.getProjects,
+    };
+    let total = 0;
+    for (const key of Object.keys(getMap)) {
+      const rows = await getMap[key]();
+      for (const row of rows) { await deleteMap[key](row.id); total++; }
+    }
+    statusEl.textContent = `✓ Deleted ${total} record${total===1?'':'s'}. TaskFlow is now blank.`;
+    statusEl.style.color = 'var(--green)';
+    await init();
+  }
 
   async function importAllData(file) {
     const statusEl = document.getElementById('importStatus');
@@ -1435,29 +1473,11 @@
   // INIT
   // ══════════════════════════════════════════════════════════
   async function init() {
-    sites = await DB.getSites();
-    if (!sites.length) {
-      for (const s of _defaultSites()) await DB.saveSite(s);
-      sites = await DB.getSites();
-    }
-
+    sites   = await DB.getSites();
     vendors = await DB.getVendors();
-    if (!vendors.length) {
-      for (const v of _defaultVendors()) await DB.saveVendor(v);
-      vendors = await DB.getVendors();
-    }
-
-    users = await DB.getUsers();
-    if (!users.length) {
-      for (const u of _defaultUsers()) await DB.saveUser(u);
-      users = await DB.getUsers();
-    }
-
-    roles = await DB.getRoles();
-    if (!roles.length) {
-      for (const r of _defaultRoles()) await DB.saveRole(r);
-      roles = await DB.getRoles();
-    }
+    users   = await DB.getUsers();
+    roles   = await DB.getRoles();
+    // Auto-seed demo data disabled — TaskFlow starts blank now.
 
     _cachedVisits   = await DB.getVisits();
     _cachedInvoices = await DB.getInvoices();
