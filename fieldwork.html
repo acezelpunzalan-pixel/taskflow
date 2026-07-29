@@ -704,10 +704,7 @@
 
   async function init() {
     visits = await DB.getVisits();
-    if (!visits.length) {
-      for (const v of _defaultVisits()) await DB.saveVisit(v);
-      visits = await DB.getVisits();
-    }
+    // Auto-seed demo data disabled — TaskFlow starts blank now.
     renderAll();
   }
   init();
