@@ -894,10 +894,7 @@ document.getElementById('delModal').addEventListener('click',e=>{if(e.target===d
 // ── INIT ──────────────────────────────────────────────────
 async function init() {
   items = await DB.getOpex();
-  if (!items.length) {
-    for (const it of _defaultOpex()) await DB.saveOpex(it);
-    items = await DB.getOpex();
-  }
+  // Auto-seed demo data disabled — TaskFlow starts blank now.
   renderAll();
 }
 init();
