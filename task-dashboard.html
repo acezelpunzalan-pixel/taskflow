@@ -642,10 +642,7 @@
 
   async function init() {
     tasks = await DB.getTasks();
-    if (!tasks.length) {
-      for (const t of _defaultTasks()) await DB.saveTask(t);
-      tasks = await DB.getTasks();
-    }
+    // Auto-seed demo data disabled — TaskFlow starts blank now.
     renderAll();
   }
   init();
