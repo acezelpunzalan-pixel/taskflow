@@ -559,10 +559,7 @@ document.getElementById('delModal').addEventListener('click',e=>{if(e.target===d
 // ── INIT ─────────────────────────────────────────────────
 async function init() {
   items = await DB.getCapex();
-  if (!items.length) {
-    for (const it of _defaultCapex()) await DB.saveCapex(it);
-    items = await DB.getCapex();
-  }
+  // Auto-seed demo data disabled — TaskFlow starts blank now.
   renderAll();
 }
 init();
