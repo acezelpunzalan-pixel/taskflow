@@ -383,7 +383,7 @@ function today() { return new Date().toISOString().slice(0,10); }
 
 async function load() {
   devices = await DB.getDevices();
-  if (devices.length === 0) await seedData();
+  // Auto-seed demo data disabled — TaskFlow starts blank now.
 }
 
 // ── SEED ────────────────────────────────────────────────────────
